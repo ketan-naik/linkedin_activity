@@ -1,261 +1,103 @@
-// utils/prompts.js - Human-Grade Prompts, Tone Control & Carousel Generator
+/**
+ * Core Prompt Engineering & Trending DE Topics Engine
+ */
 
-const DE_SYSTEM_INSTRUCTION = `You are an elite Staff/Principal Data Engineer and top technical creator on LinkedIn.
-You write authentic, battle-tested, high-signal engineering posts and comments that peers and engineering leaders love to read and share.
-
-CRITICAL ANTI-AI WRITING RULES:
-- NEVER write robotic section headers like "HOOK:", "CONTEXT:", "SOLUTION:", "TAKEAWAY:", "PROBLEM:", "CALL TO ACTION:", or "ENGAGEMENT QUESTION:". The text must flow naturally like a real human engineer wrote it.
-- NEVER start with AI clichés like "In today's fast-paced data world...", "Let's dive in!", "Are you struggling with...", or "Unlocking the power of...".
-- Use clean line breaks and 1-2 sentence paragraphs for effortless mobile reading.
-- Include deep, specific technical details (e.g., partition salting, broadcast hash joins, dbt incremental strategies, Apache Iceberg metadata tree, Kafka consumer lag, DuckDB columnar vectorization).
-- End naturally with a thoughtful question to spark discussion in the comments.
-- Finish with 4-5 relevant hashtags at the bottom.`;
-
-const COMMENT_PERSONAS = {
-  practical_experience: {
-    id: 'practical_experience',
-    name: '💡 Practical Nuance',
-    description: 'Adds real-world pipeline edge cases, gotchas, or war stories',
-    buildPrompt: (postContent, authorName, userBio, length = 'standard') => `
-${DE_SYSTEM_INSTRUCTION}
-
-Author: ${authorName || 'Peer'}
-User Background: ${userBio || 'Senior Data Engineer with distributed systems and pipeline experience'}
-Length Target: ${length === 'punchy' ? '1 to 2 sharp sentences max' : length === 'deep' ? '4 to 5 sentences with specific technical examples' : '2 to 3 concise sentences'}
-
-Post:
-"""
-${postContent}
-"""
-
-Task: Write an authentic LinkedIn comment adding a real-world Data Engineering nuance, edge case, or production gotcha related to the topic.
-Rules:
-- Length: ${length === 'punchy' ? '1-2 sentences' : length === 'deep' ? '4-5 sentences' : '2-3 sentences'}.
-- NO hashtags, NO robotic praise like "Great post!".
-- Return ONLY the comment text directly.
-`
+export const TRENDING_DE_TOPICS = [
+  {
+    id: 'iceberg_catalog',
+    badge: '🔥 HOT DEBATE',
+    title: 'Iceberg vs Delta: REST Catalog Wars & Compaction Debt',
+    description: "Why table formats won't save you if your metadata manifests and small-file compaction are mismanaged.",
+    tags: ['#ApacheIceberg', '#DeltaLake', '#DataLakehouse', '#DataEngineering']
   },
-
-  architectural_tradeoff: {
-    id: 'architectural_tradeoff',
-    name: '⚖️ Architectural Trade-off',
-    description: 'Highlights cost, latency, scalability, and maintenance trade-offs',
-    buildPrompt: (postContent, authorName, userBio, length = 'standard') => `
-${DE_SYSTEM_INSTRUCTION}
-
-Author: ${authorName || 'Peer'}
-User Background: ${userBio || 'Senior Data Engineer'}
-Length Target: ${length === 'punchy' ? '1 to 2 sharp sentences' : length === 'deep' ? '4 to 5 sentences comparing dimensions' : '2 to 3 sentences'}
-
-Post:
-"""
-${postContent}
-"""
-
-Task: Write a thoughtful comment highlighting a crucial trade-off mentioned or implied (e.g., Compute Cost vs Latency, Operational Simplicity vs Flexibility, or Batch vs Streaming).
-Rules:
-- Sound like a pragmatic staff engineer weighing engineering tradeoffs.
-- NO hashtags, no robotic praise.
-- Return ONLY the comment text directly.
-`
+  {
+    id: 'duckdb_spark',
+    badge: '💰 FINOPS / COST',
+    title: 'DuckDB + Polars: Slashing 6-Figure Spark Compute Bills',
+    description: 'Replacing over-provisioned Spark clusters with single-node vectorized engines for sub-100GB pipelines.',
+    tags: ['#DuckDB', '#Polars', '#ApacheSpark', '#FinOps']
   },
-
-  thoughtful_question: {
-    id: 'thoughtful_question',
-    name: '❓ Senior Inquiry',
-    description: 'Sparks conversation with a deep architectural or production question',
-    buildPrompt: (postContent, authorName, userBio, length = 'standard') => `
-${DE_SYSTEM_INSTRUCTION}
-
-Author: ${authorName || 'Peer'}
-User Background: ${userBio || 'Senior Data Engineer'}
-Length Target: ${length === 'punchy' ? '1 to 2 sentences' : '2 to 3 sentences'}
-
-Post:
-"""
-${postContent}
-"""
-
-Task: Write a short, engaging comment making a quick observation and asking a sharp technical question to the author regarding scale, observability, schema drift, or failure recovery.
-Rules:
-- Tone: Genuine curiosity, peer-to-peer engineering discussion.
-- Return ONLY the comment text directly.
-`
+  {
+    id: 'data_contracts',
+    badge: '🛡️ RELIABILITY',
+    title: 'Data Contracts in Production: Stopping Silent Schema Breakages',
+    description: 'Enforcing JSON Schema & Protobuf at ingest to eliminate 3 AM production pipeline failures.',
+    tags: ['#DataContracts', '#DataQuality', '#DataObservability', '#DataOps']
   },
-
-  contrarian_take: {
-    id: 'contrarian_take',
-    name: '🔥 Contrarian Reality Check',
-    description: 'Respectfully challenges hype with practical production reality',
-    buildPrompt: (postContent, authorName, userBio, length = 'standard') => `
-${DE_SYSTEM_INSTRUCTION}
-
-Author: ${authorName || 'Peer'}
-User Background: ${userBio || 'Principal Data Architect'}
-
-Post:
-"""
-${postContent}
-"""
-
-Task: Write a respectful, pragmatic contrarian take challenging over-engineering or hype in this topic (e.g., why simpler batch/SQL beats complex streaming for 90% of business use cases, or why tooling is rarely the real bottleneck).
-Rules:
-- 2 to 3 sentences max.
-- High signal, respectful, grounded in business ROI and maintenance cost.
-- Return ONLY the comment text directly.
-`
+  {
+    id: 'flink_cdc',
+    badge: '⚡ STREAMING',
+    title: 'Real-time Flink + Iceberg CDC vs Micro-batching',
+    description: 'Architecting sub-second change data capture pipelines without drowning in small file bottlenecks.',
+    tags: ['#ApacheFlink', '#StreamingData', '#Kafka', '#CDC']
+  },
+  {
+    id: 'spark_skew',
+    badge: '🚀 DEEP OPTIMIZATION',
+    title: 'PySpark Partition Skew & AQE: 14-Hour to 18-Min Optimization',
+    description: 'Salting keys, tuning spark.sql.shuffle.partitions, and handling OOM errors at scale.',
+    tags: ['#PySpark', '#BigData', '#PerformanceTuning', '#ApacheSpark']
   }
+];
+
+export const SYSTEM_PROMPTS = {
+  COMMENT: `You are an elite Staff Data Platform & Infrastructure Engineer.
+Your goal is to write insightful, technically deep, and engaging comments on LinkedIn posts.
+Never write generic fluff like "Great share!" or "Thanks for sharing".
+Always reference specific architectures, performance trade-offs, or real-world production engineering realities.`,
+
+  POST_MASTERCLASS: `You are a top-tier Tech Influencer and Principal Data Architect on LinkedIn.
+Your task is to write high-engagement, authoritative, long-form technical MASTERCLASS posts for Data Engineers.
+
+STRICT FORMATTING AND LENGTH REQUIREMENTS:
+- TOTAL LENGTH: 350 to 500 WORDS (1,400 to 2,200 characters). Do NOT produce short summaries.
+- HOOK: 1-2 punchy lines that stop the scroll (contrarian take, painful production truth, or shocking cost metric).
+- THE PROBLEM: Why conventional approaches fail in production at scale.
+- 4 TECHNICAL PILLARS: Use Unicode bullet markers (🔹) with bold titles (e.g., 🔹 **1. Partition Salting Over AQE Blind Trust**). Provide concrete architecture rationale, configurations, or mini code/SQL patterns.
+- 👉 DECISION MATRIX: A clear rule of thumb (When to use X vs Y).
+- 💬 ENGAGEMENT CTA: An open-ended, high-level question that invites senior engineers and architects to debate in the comments.
+- 🏷️ HASHTAGS: 4-6 targeted, high-traffic data engineering hashtags at the bottom.
+
+Use clean paragraph spacing, crisp bullet points, and Unicode bolding where impactful.`
 };
 
-const POST_FRAMEWORKS = {
-  architecture_case_study: {
-    id: 'architecture_case_study',
-    name: '🏗️ System Design & Case Study',
-    description: 'Real-world data architecture breakdown (Problem -> Bottleneck -> Solution -> Impact)',
-    buildPrompt: (topic, notes, userBio) => `
-${DE_SYSTEM_INSTRUCTION}
+export function buildTrendingPostPrompt(topicId, customPrompt = '') {
+  const topic = TRENDING_DE_TOPICS.find(t => t.id === topicId);
+  const title = topic ? topic.title : (customPrompt || 'Modern Data Engineering Architecture');
+  const context = topic ? topic.description : customPrompt;
+  const tags = topic ? topic.tags.join(' ') : '#DataEngineering #BigData #DataArchitecture';
 
-Topic: ${topic}
-Context/Notes: ${notes || 'Real-world data pipeline optimization, scale bottlenecks, and practical architectural decisions.'}
-Author Bio: ${userBio}
+  return `Write a complete, high-authority, viral Masterclass LinkedIn Post on this trending topic:
+TOPIC: "${title}"
+CONTEXT & KEY THEME: "${context}"
+RELEVANT HASHTAGS: ${tags}
 
-Generate a COMPLETE, comprehensive LinkedIn post (around 250–350 words / 1000–1600 characters) written as a Data Architecture Case Study.
+Follow this exact Masterclass architecture:
+1. Scroll-Stopping Hook (Bold contrarian view or real production metric)
+2. The Core Problem / Anti-Pattern
+3. 4 Detailed Technical Takeaways / Pillars (marked with 🔹 and bold subtitles)
+4. 👉 Architecture Rule of Thumb / Decision Matrix
+5. 💬 Discussion Prompt for Data Engineers & Architects
+6. Mandatory Hashtags: ${tags}
 
-Include:
-1. Opening Hook: 1-2 lines on a massive performance jump, cost drop, or surprising bottleneck.
-2. The Root Cause: Explain the underlying technical bottleneck (e.g. partition skew, OOM memory spills, executor starvation, shuffle bottlenecks).
-3. The 3 Technical Fixes: Detail 3 specific engineering steps (using 🔹 bullets) explaining the exact implementation (e.g. salting keys with random prefixes, enabling Adaptive Query Execution AQE, tuning spark.sql.autoBroadcastJoinThreshold).
-4. The Business & Engineering Impact: Concrete metrics on runtime, cost, and reliability.
-5. The Staff Engineer Takeaway: 1 golden rule for pipeline design.
-6. Discussion Question: Ask fellow engineers how they handle this in production.
-7. Hashtags: 4-5 relevant hashtags.
+Tone: Authoritative, pragmatic, Senior Staff/Principal Engineer level.
+Length: 350 to 500 words. Make it rich, educational, and bookmark-worthy.`;
+}
 
-CRITICAL: Output the complete, full post from start to finish. Do NOT write section labels like "HOOK:".
-`
-  },
+export function buildPostPrompt({ topic, format = 'standard', tone = 'technical' }) {
+  return `Write a comprehensive, bookmark-worthy LinkedIn Masterclass Post about: "${topic}".
+Tone: ${tone}
+Format: ${format}
 
-  tool_comparison: {
-    id: 'tool_comparison',
-    name: '⚔️ Tool Benchmark & Comparison',
-    description: 'Unbiased, hands-on comparison (e.g., Polars vs DuckDB, Iceberg vs Delta)',
-    buildPrompt: (topic, notes, userBio) => `
-${DE_SYSTEM_INSTRUCTION}
+STRICT REQUIREMENTS:
+- Length: 350 to 500 words.
+- Structure:
+  • Scroll-Stopping Hook
+  • The Real Production Bottleneck
+  • 4 🔹 Technical Insights / Architecture Solutions (with config/metric references)
+  • 👉 Decision Matrix (When to choose what)
+  • 💬 Discussion Question
+  • 4-6 Relevant #Hashtags (#DataEngineering #DataPlatform #BigData)
 
-Topic / Comparison: ${topic}
-Notes: ${notes || 'Cover memory efficiency, query engine internals, ease of deployment, and best production use cases.'}
-
-Generate a COMPLETE, full-length LinkedIn comparison post (around 250–350 words / 1000–1600 characters) that engineers will bookmark.
-
-Include:
-1. Opening Hook: Bold, honest take on the hype vs production reality for both tools.
-2. Tool A Deep-Dive: 2-3 specific architectural strengths and where it breaks down.
-3. Tool B Deep-Dive: 2-3 specific architectural strengths and where it breaks down.
-4. The Production Decision Matrix: Clear rules of thumb (👉 Use Tool A when... 👉 Use Tool B when...).
-5. Pragmatic Staff Verdict: Balanced recommendation based on scale and team maintenance overhead.
-6. Discussion Question & 4-5 relevant hashtags.
-
-CRITICAL: Output the complete post in full. Do NOT write section labels.
-`
-  },
-
-  gotchas_and_lessons: {
-    id: 'gotchas_and_lessons',
-    name: '💥 Gotchas & Incident Breakdown',
-    description: 'Common mistakes, silent bugs, and hard-earned engineering lessons',
-    buildPrompt: (topic, notes, userBio) => `
-${DE_SYSTEM_INSTRUCTION}
-
-Topic: ${topic}
-Notes: ${notes || 'Silent pipeline bugs, partition traps, and non-obvious production mistakes.'}
-
-Generate a COMPLETE, full-length LinkedIn post (around 250–350 words / 1000–1600 characters) sharing 4 subtle Data Engineering gotchas on this topic.
-
-Include all 4 gotchas in full detail:
-1. Opening Hook: "Most data engineers learn these [Topic] gotchas the hard way in production:"
-2. Gotcha 1 (1️⃣): The mistake + Why it quietly fails + The proper fix.
-3. Gotcha 2 (2️⃣): The mistake + Why it quietly fails + The proper fix.
-4. Gotcha 3 (3️⃣): The mistake + Why it quietly fails + The proper fix.
-5. Gotcha 4 (4️⃣): The mistake + Why it quietly fails + The proper fix.
-6. Golden Rule & Discussion Question.
-7. 4-5 relevant hashtags.
-
-CRITICAL: Output all 4 gotchas completely.
-`
-  },
-
-  carousel_outline: {
-    id: 'carousel_outline',
-    name: '📑 LinkedIn PDF Carousel Outline',
-    description: 'Slide-by-slide visual carousel script (Hook -> Problem -> Solutions -> Summary)',
-    buildPrompt: (topic, notes, userBio) => `
-${DE_SYSTEM_INSTRUCTION}
-
-Topic: ${topic}
-Notes: ${notes || 'High visual impact data engineering guide.'}
-
-Generate a 6-Slide LinkedIn PDF Carousel Outline for this topic:
-Format each slide cleanly:
-Slide 1 (Cover / Hook): Bold title + subtitle + "Swipe 👉"
-Slide 2 (The Problem / Trap): 2-3 bullet points on the bottleneck.
-Slide 3 (Core Concept / Architecture): Diagram representation & mechanism.
-Slide 4 (The Production Solution): 3 concrete implementation steps.
-Slide 5 (Benchmark / Decision Matrix): Clear rule of thumb.
-Slide 6 (Summary & CTA): Key takeaway + "Save this for later 📌 | Follow for daily DE tips".
-
-Hashtags: 4-5 relevant hashtags.
-`
-  },
-
-  code_pattern_tip: {
-    id: 'code_pattern_tip',
-    name: '💻 PySpark / SQL / Python Code Tip',
-    description: 'Optimized code snippet with before/after performance explanation',
-    buildPrompt: (topic, notes, userBio) => `
-${DE_SYSTEM_INSTRUCTION}
-
-Topic: ${topic}
-Notes: ${notes || 'Showcase an anti-pattern vs optimized pattern.'}
-
-Generate a COMPLETE technical tip post (around 250–350 words / 1000–1500 characters) explaining an optimized code pattern.
-Include opening hook, naive pattern, optimized pattern, benchmark impact, and discussion question.
-`
-  },
-
-  career_mindset: {
-    id: 'career_mindset',
-    name: '🚀 Career & Data Engineering Mindset',
-    description: 'Moving from task-taker to strategic Data Architect / Product thinker',
-    buildPrompt: (topic, notes, userBio) => `
-${DE_SYSTEM_INSTRUCTION}
-
-Topic: ${topic}
-Notes: ${notes || 'Bridging business impact, stakeholder communication, and high-standard data modeling.'}
-
-Generate a COMPLETE, inspiring LinkedIn career post (around 250–350 words / 1000–1500 characters) for data engineers.
-`
-  }
-};
-
-const UnicodeStyler = {
-  bold: (text) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const boldChars = '𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵';
-    return text.split('').map(c => {
-      const idx = chars.indexOf(c);
-      return idx >= 0 ? boldChars.substring(idx * 2, idx * 2 + 2) : c;
-    }).join('');
-  },
-
-  italic: (text) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-    const italicChars = '𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻';
-    return text.split('').map(c => {
-      const idx = chars.indexOf(c);
-      return idx >= 0 ? italicChars.substring(idx * 2, idx * 2 + 2) : c;
-    }).join('');
-  }
-};
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { DE_SYSTEM_INSTRUCTION, COMMENT_PERSONAS, POST_FRAMEWORKS, UnicodeStyler };
+Ensure high technical accuracy and deep insights that data engineers will immediately want to save and repost.`;
 }

@@ -11,7 +11,21 @@ A **100% free**, open-source Chrome extension and growth copilot built specifica
 
 ## 🌟 Key Features
 
-### 1. 💬 In-Feed AI Comment Assistant
+### 1. 🔥 Curated Trending DE Topics & Masterclass Post Engine
+- **Top 5 Curated 7-Day DE Trends**:
+  1. *Iceberg vs Delta: REST Catalog Wars & Compaction Debt*
+  2. *DuckDB + Polars: Slashing 6-Figure Spark Compute Bills*
+  3. *Data Contracts in Production: Stopping Silent Schema Breakages*
+  4. *Real-time Flink + Iceberg CDC vs Micro-batching*
+  5. *PySpark Partition Skew & AQE: 14-Hour to 18-Min Optimization*
+- **1-Click Masterclass Post Generation**: Produces 350–500 word (1,400–2,200 character), bookmark-worthy deep dives complete with:
+  - 🎣 Scroll-stopping contrarian hook & painful production bottlenecks.
+  - 🔹 **4 Technical Pillars** with configuration tuning and architectural trade-offs.
+  - 👉 **Decision Matrix / Rule of Thumb** (When to pick which engine).
+  - 💬 **Architect-level Discussion Question** to drive comments.
+  - 🏷️ **Targeted Hashtags** and Unicode bold formatting.
+
+### 2. 💬 In-Feed AI Comment Assistant
 - **Interactive Comment Banner**: Displays a 1-click **`✨ Generate AI Reply for this post`** banner whenever you click into any comment box on LinkedIn.
 - **Deep Context Extraction**: Automatically reads the post commentary, author, and infographic architecture topics (AWS, Spark, Iceberg, Snowflake, Kafka).
 - **Sub-Comment Thread Support**: Click **`⚡ AI Reply`** under individual comments to reply directly to peers in a discussion thread.
@@ -20,108 +34,70 @@ A **100% free**, open-source Chrome extension and growth copilot built specifica
   - 💬 **Standard (2–3 sentences)**: Balanced technical nuance.
   - 📜 **Deep-Dive (4–5 sentences)**: Rich breakdown with technical metrics.
 - **Micro-Refinements**:
-  - ✂️ **Shorter**: Instantly condenses the comment into 1 punchy sentence.
-  - ⚡ **Add Config**: Injects concrete parameters (e.g. `spark.sql.adaptive.skewJoin.enabled`, dbt incremental `unique_key`, Iceberg compaction).
-  - 🔄 **Regenerate**: Fetches a fresh perspective.
-- **1-Click Insertion**: Drops the generated reply directly into the LinkedIn comment box with optional auto-like.
+  - ✂️ **Shorter**: Instantly condenses the comment into a crisp punchline.
+  - ⚡ **Add Config/Code**: Injects concrete Spark/SQL/Iceberg configs.
+  - 🔄 **Regenerate**: Produces a fresh contrarian angle.
 
-### 2. ✍️ Data Engineering Post Studio (Side Panel)
-- **Proven Technical Frameworks**:
-  - 🏗️ *System Design & Case Study*
-  - ⚔️ *Tool Benchmark & Comparison* (e.g. Polars vs DuckDB, Iceberg vs Delta)
-  - 💥 *Gotchas & Incident Breakdown*
-  - 📑 *LinkedIn PDF Carousel Outline* (Slide-by-slide visual blueprint)
-  - 💻 *PySpark / SQL / Python Code Tip*
-  - 🚀 *Career & DE Mindset*
-- **Unicode Formatting Toolbar**: 1-click **Bold**, *Italic*, 🔹 bullets, 👉 arrows, and code blocks for clean mobile formatting.
-
-### 3. 🔥 Daily Growth & Habit Tracker
-- Tracks your daily LinkedIn engagement goal:
-  - 💬 *Daily Comments Progress Bar (Goal: 10/day)*
-  - 🔥 *Daily Consistency Streak Counter*
-
-### 4. ⌨️ Global Keyboard Shortcut (`Alt + C`)
-- Press **`Alt + C`** on any tab to immediately open your DE Copilot sidepanel.
-
-### 5. 📁 Local Drafts Manager & 100% Privacy
-- Saves your drafts locally in your browser storage.
-- **Zero Third-Party Servers**: Your API key stays in `chrome.storage.local` and is never shared with any middleman.
+### 3. 🎯 Daily Growth Tracker
+- Track your daily goal (e.g., 5 comments/day) with a real-time progress bar.
+- Streak tracker & celebration badges when reaching daily milestones.
 
 ---
 
-## 🛠️ Step-by-Step Installation & Setup Guide
+## 📥 How to Install & Activate
 
-### Step 1: Download the Project to Your Computer
+### Step 1: Clone the Repository
+Open your terminal or command prompt and run:
+```bash
+git clone https://github.com/ketan-naik/linkedin_activity.git
+```
 
-Choose whichever option is easier for you:
-
-* **Option A (Using Git in Terminal)**:
-  ```bash
-  git clone https://github.com/ketan-naik/linkedin_activity.git
-  ```
-* **Option B (Direct Download as ZIP)**:
-  1. Click the green **`<> Code`** button at the top of this GitHub repository page.
-  2. Click **"Download ZIP"**.
-  3. Extract/unzip the downloaded file anywhere on your computer (e.g. in your Downloads or Documents folder).
-
----
-
-### Step 2: Load the Extension in Your Browser (Chrome / Brave / Edge)
-
-1. Open your browser and navigate to:
-   ```text
+### Step 2: Load into Google Chrome
+1. Open Google Chrome and navigate to:
+   ```
    chrome://extensions/
    ```
-2. Turn **ON** the **Developer mode** toggle switch (in the top-right corner).
-3. Click the **"Load unpacked"** button (in the top-left corner).
-4. Select the `linkedin_activity` folder that you downloaded or cloned in Step 1.
-5. In your browser toolbar, click the **Extensions puzzle piece icon** (🧩) and **Pin** **LinkedIn DE Copilot**.
+2. In the top-right corner, turn **ON** **Developer mode**.
+3. Click the **Load unpacked** button in the top-left.
+4. Select the cloned `linkedin_activity` folder.
+
+### Step 3: Get your Free Gemini API Key
+1. Go to [Google AI Studio](https://aistudio.google.com/).
+2. Sign in with your Google account and click **Get API key** → **Create API key**.
+3. Copy your API key (100% free tier, generous rate limits).
+
+### Step 4: Configure the Extension
+1. Click the puzzle icon (Extensions) in Chrome's top toolbar and pin **LinkedIn DE Copilot**.
+2. Click the extension icon or press **`Alt + C`** to open the side panel.
+3. Open the **⚙️ Settings** tab, paste your API Key, and click **Save & Test Key**.
 
 ---
 
-### Step 3: Get Your 100% Free Gemini API Key (Takes 30 Seconds)
+## ⚡ How to Use
 
-1. Go to **[Google AI Studio](https://aistudio.google.com/)** and sign in with your Google account.
-2. Click the **"Get API key"** button and create a new key.
-   *(Google provides 1,500 requests per day for free with no credit card required).*
-3. Copy your API key (starts with `AIzaSy...`).
+### Writing Masterclass Posts:
+1. Open the side panel (**`Alt + C`**).
+2. Click the **🔥 Trending** tab.
+3. Select any of the top 5 curated trending topics or enter your own custom theme.
+4. Click **🚀 Generate Masterclass Post**.
+5. Review the 350–500 word post, copy to clipboard, and publish directly to LinkedIn!
 
----
-
-### Step 4: Activate the Extension
-
-1. Click the **⚡ LinkedIn DE Copilot** icon in your browser toolbar (or press **`Alt + C`**) to open the Side Panel.
-2. Click the **⚙️ Settings** tab.
-3. Paste your Gemini API key into the input box and click **"Save & Test Connection"**.
-4. You will see a green **Connected!** badge. Your extension is now ready to use!
-
----
-
-### Step 5: Start Growing on LinkedIn!
-
-* **Replying to Posts & Comments**:
-  1. Open [linkedin.com/feed](https://www.linkedin.com/).
-  2. Click into the **`Add a comment...`** box under any post.
-  3. Click the glowing **`✨ Generate AI Reply for this post`** banner.
-  4. The sidepanel will craft 3 tailored Data Engineering replies.
-  5. Click **`✍️ Insert into Comment Box`** on the reply you want!
-
-* **Creating Viral Technical Posts**:
-  1. Open the extension sidepanel and click the **✍️ Post Studio** tab.
-  2. Select a topic (or type your own) and choose a framework (e.g., *System Design Case Study* or *PDF Carousel Outline*).
-  3. Click **"🚀 Generate DE Post"**.
-  4. Use the toolbar to style with **Unicode Bold**, *Italics*, or bullets, then click **"📋 Copy Post"**!
+### In-Feed Comments:
+1. Scroll LinkedIn feed. When you click into any post's comment box, you'll see:
+   > 💡 **Data Eng Copilot**: [✨ Generate AI Reply for this post]
+2. Click the button to automatically open the side panel and generate 3 tailored options.
+3. Click **Insert into Post** or copy directly!
 
 ---
 
-## 🔒 Security & Privacy
+## 🛠️ Tech Stack & Architecture
 
-- **100% Client-Side**: All operations run locally inside your browser session.
-- **Zero Credential Access**: The extension never asks for or stores your LinkedIn login credentials.
-- **Billing Safe**: Runs on Google's generous Free Tier with $0 cost risk.
+- **Manifest V3**: Pure Chrome Extension API with Side Panel context.
+- **AI Engine**: Google Gemini Flash (`gemini-3.6-flash`, `gemini-3.0-flash`, `gemini-2.5-flash` dynamic fallback).
+- **Security & Privacy**: Zero server middleware; all API keys are stored locally in Chrome's encrypted `chrome.storage.local`.
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License. Feel free to fork, customize, and build your audience!
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.

@@ -39,6 +39,9 @@
       <button class="nav-tab active" data-tab="tab-post-creator">
         <span class="tab-icon">✍️</span> Post Studio
       </button>
+      <button class="nav-tab" data-tab="tab-trending">
+        <span class="tab-icon">🔥</span> Trending
+      </button>
       <button class="nav-tab" data-tab="tab-comment-copilot">
         <span class="tab-icon">💬</span> Comments
       </button>
@@ -58,12 +61,11 @@
       <div class="section-card">
         <label class="field-label">🎯 Data Engineering Topic</label>
         <div class="topic-pills" id="topic-pills-container">
-          <button class="topic-pill active" data-topic="PySpark Partition Skew & Memory Spill">🔥 Spark Memory Skew</button>
-          <button class="topic-pill" data-topic="Apache Iceberg vs Delta Lake: Production Tradeoffs">❄️ Iceberg vs Delta</button>
-          <button class="topic-pill" data-topic="dbt Incremental Models vs Full Refresh Gotchas">⚡ dbt Incremental</button>
-          <button class="topic-pill" data-topic="Real-time CDC Pipeline using Kafka, Debezium & Flink">🌊 Real-time CDC</button>
-          <button class="topic-pill" data-topic="DuckDB vs Polars for Local Data Pipelines">🦆 DuckDB vs Polars</button>
-          <button class="topic-pill" data-topic="Data Contracts & Preventing Silent Schema Breakages">📜 Data Contracts</button>
+          <button class="topic-pill active" data-topic="Apache Iceberg vs Delta Lake: The Open Catalog & Compaction Debt">❄️ Iceberg vs Delta</button>
+          <button class="topic-pill" data-topic="DuckDB + Polars: Slashing 6-Figure Spark Compute Bills">🦆 DuckDB vs Spark</button>
+          <button class="topic-pill" data-topic="PySpark Partition Skew & Memory Spill: 14-Hour to 18-Min Optimization">🔥 Spark Skew</button>
+          <button class="topic-pill" data-topic="Data Contracts in Production: Stop Silent Schema Breakages">📜 Data Contracts</button>
+          <button class="topic-pill" data-topic="Real-Time Flink + Iceberg CDC: The Death of Micro-Batching?">🌊 Flink CDC</button>
         </div>
         <input type="text" id="custom-topic-input" class="text-input" placeholder="Or type your own custom topic..." />
       </div>
@@ -73,23 +75,22 @@
           <div class="field-group">
             <label class="field-label" for="framework-select">📐 Post Framework</label>
             <select id="framework-select" class="select-input">
-              <option value="architecture_case_study">🏗️ System Design & Case Study</option>
+              <option value="viral_masterclass">🌟 Viral Masterclass Breakdown (Recommended)</option>
+              <option value="architecture_case_study">🏗️ System Design Case Study</option>
               <option value="tool_comparison">⚔️ Tool Benchmark & Comparison</option>
-              <option value="gotchas_and_lessons">💥 Gotchas & Incident Breakdown</option>
+              <option value="gotchas_and_lessons">💥 4 Production Gotchas Breakdown</option>
               <option value="carousel_outline">📑 LinkedIn PDF Carousel Outline</option>
-              <option value="code_pattern_tip">💻 PySpark / SQL / Python Code Tip</option>
-              <option value="career_mindset">🚀 Career & DE Mindset</option>
             </select>
           </div>
         </div>
 
         <div class="field-group" style="margin-top: 10px;">
-          <label class="field-label" for="post-notes-input">📝 Extra Details / Context (Optional)</label>
-          <textarea id="post-notes-input" class="textarea-input" rows="2" placeholder="e.g. Reduced runtime from 4 hours to 18 mins using salting and broadcast join..."></textarea>
+          <label class="field-label" for="post-notes-input">📝 Extra Details / Real-World Context (Optional)</label>
+          <textarea id="post-notes-input" class="textarea-input" rows="2" placeholder="e.g. In our lakehouse, we reduced compute cost from $18k to $4k by enabling AQE and key salting..."></textarea>
         </div>
 
         <button id="generate-post-btn" class="primary-btn">
-          <span class="btn-icon">🚀</span> Generate Full-Length DE Post
+          <span class="btn-icon">🚀</span> Generate Full Masterclass Post
         </button>
       </div>
 
@@ -110,7 +111,7 @@
           <button class="format-btn" id="format-code" title="Format code line">💻</button>
         </div>
 
-        <textarea id="post-output-textarea" class="textarea-input post-editor" rows="12"></textarea>
+        <textarea id="post-output-textarea" class="textarea-input post-editor" rows="14"></textarea>
 
         <!-- Actions -->
         <div class="action-btn-row">
@@ -127,7 +128,22 @@
       </div>
     </section>
 
-    <!-- TAB 2: Comment Copilot (Inside Extension Side Panel) -->
+    <!-- TAB 2: Trending Topics (Past 7 Days) -->
+    <section class="tab-content" id="tab-trending">
+      <div class="section-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 class="card-title">🔥 Top 5 Trending DE Topics (Past 7 Days)</h3>
+          <span class="badge-free">Live Curated</span>
+        </div>
+        <p class="field-hint">Click any trending topic to instantly generate a masterclass LinkedIn breakdown:</p>
+      </div>
+
+      <div class="trending-list" id="trending-topics-container">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 3: Comment Copilot -->
     <section class="tab-content" id="tab-comment-copilot">
       <div class="section-card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -141,7 +157,6 @@
       </div>
 
       <div class="section-card">
-        <!-- Length Control Selector -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <label class="field-label" style="margin: 0;">Comment Length</label>
           <div class="length-pills" id="comment-length-pills">
@@ -162,7 +177,7 @@
       </div>
     </section>
 
-    <!-- TAB 3: Viral Hooks Optimizer -->
+    <!-- TAB 4: Viral Hooks Optimizer -->
     <section class="tab-content" id="tab-hooks">
       <div class="section-card">
         <label class="field-label">🎣 Generate 3 High-Dwell Hooks for any DE Topic</label>
@@ -181,7 +196,7 @@
       </div>
     </section>
 
-    <!-- TAB 4: Saved Drafts -->
+    <!-- TAB 5: Saved Drafts -->
     <section class="tab-content" id="tab-drafts">
       <div class="drafts-header">
         <h3 style="font-size: 14px; color: #E1E9EE; margin: 0;">Saved Posts & Drafts</h3>
@@ -192,7 +207,7 @@
       </div>
     </section>
 
-    <!-- TAB 5: Settings -->
+    <!-- TAB 6: Settings -->
     <section class="tab-content" id="tab-settings">
       <div class="section-card">
         <h3 class="card-title">🔑 Google Gemini Free API Key</h3>

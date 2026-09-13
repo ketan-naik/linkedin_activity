@@ -1,4 +1,4 @@
-// sidepanel/sidepanel.js - Main logic for LinkedIn DE Copilot Studio
+// sidepanel/sidepanel.js - Main logic for LinkedIn DE Copilot Studio with Trending Engine
 
 document.addEventListener('DOMContentLoaded', async () => {
   const tabs = document.querySelectorAll('.nav-tab');
@@ -33,7 +33,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const formatBulletCheckBtn = document.getElementById('format-bullet-check');
   const formatCodeBtn = document.getElementById('format-code');
 
-  // Tab 2: Comment Copilot Elements
+  // Tab 2: Trending Topics Elements
+  const trendingTopicsContainer = document.getElementById('trending-topics-container');
+
+  // Tab 3: Comment Copilot Elements
   const grabPostBtn = document.getElementById('grab-post-btn');
   const commentPostInput = document.getElementById('comment-post-input');
   const commentLengthPills = document.getElementById('comment-length-pills');
@@ -41,17 +44,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const commentResultsContainer = document.getElementById('comment-results-container');
   const commentsList = document.getElementById('comments-list');
 
-  // Tab 3: Hooks Elements
+  // Tab 4: Hooks Elements
   const hookTopicInput = document.getElementById('hook-topic-input');
   const generateHooksBtn = document.getElementById('generate-hooks-btn');
   const hooksResultsCard = document.getElementById('hooks-results-card');
   const hooksListContainer = document.getElementById('hooks-list-container');
 
-  // Tab 4: Drafts Elements
+  // Tab 5: Drafts Elements
   const draftsListContainer = document.getElementById('drafts-list-container');
   const clearDraftsBtn = document.getElementById('clear-drafts-btn');
 
-  // Tab 5: Settings Elements
+  // Tab 6: Settings Elements
   const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
   const toggleKeyVisibilityBtn = document.getElementById('toggle-key-visibility-btn');
   const testSaveApiBtn = document.getElementById('test-save-api-btn');
@@ -61,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const savePreferencesBtn = document.getElementById('save-preferences-btn');
 
   let currentSettings = await StorageManager.getSettings();
-  let selectedTopic = 'PySpark Partition Skew & Memory Spill';
+  let selectedTopic = 'Apache Iceberg vs Delta Lake: The Open Catalog & Compaction Debt';
   let selectedLength = 'standard';
 
   function showToast(message) {
@@ -159,7 +162,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activeContent) activeContent.classList.add('active');
   }
 
-  // Check pending reply
+  // Render Trending Topics Tab
+  function renderTrendingTopics() {
+    if (!trendingTopicsContainer || typeof TRENDING_DE_TOPICS === 'undefined') return;
+
+    trendingTopicsContainer.innerHTML = '';
+    TRENDING_DE_TOPICS.forEach((trend) => {
+      const card = document.createElement('div');
+      card.className = 'hook-item-card';
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <strong style="color: var(--accent-cyan); font-size: 13px;">${trend.title}</strong>
+        </div>
+        <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px 0; line-height: 1.4;">${trend.description}</p>
+        <button class="action-btn action-primary generate-trend-btn" style="width: 100%; padding: 7px; font-weight: 700;">
+          <span>⚡</span> Generate Masterclass Post
+        </button>
+      `;
+
+      card.querySelector('.generate-trend-btn').addEventListener('click', () => {
+        customTopicInput.value = trend.title;
+        postNotesInput.value = trend.context;
+        frameworkSelect.value = 'viral_masterclass';
+        switchTab('tab-post-creator');
+        generatePostBtn.click();
+      });
+
+      trendingTopicsContainer.appendChild(card);
+    });
+  }
+
+  // Check pending reply from in-page click
   async function checkPendingReply() {
     chrome.storage.local.get(['pending_post_reply'], (res) => {
       if (res.pending_post_reply && res.pending_post_reply.postText) {
@@ -196,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateApiStatus();
   updateDraftsList();
   updateDailyTracker();
+  renderTrendingTopics();
   checkPendingReply();
 
   tabs.forEach(tab => {
@@ -222,7 +256,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function updateCharCounter() {
     const len = postOutputTextarea.value.length;
-    charCounter.textContent = `${len} chars (Recommended: 800 - 1800)`;
+    const words = postOutputTextarea.value.trim().split(/\s+/).filter(Boolean).length;
+    charCounter.textContent = `${words} words | ${len} chars (Recommended: 1200 - 2000)`;
   }
   postOutputTextarea.addEventListener('input', updateCharCounter);
 
@@ -241,12 +276,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const frameworkKey = frameworkSelect.value;
-    const framework = POST_FRAMEWORKS[frameworkKey] || POST_FRAMEWORKS.architecture_case_study;
+    const framework = POST_FRAMEWORKS[frameworkKey] || POST_FRAMEWORKS.viral_masterclass;
     const prompt = framework.buildPrompt(topic, postNotesInput.value.trim(), currentSettings.customBio);
 
     const originalBtnText = generatePostBtn.innerHTML;
     generatePostBtn.disabled = true;
-    generatePostBtn.innerHTML = `<span>⏳</span> Generating ${framework.name.split(' ')[0]} Post...`;
+    generatePostBtn.innerHTML = `<span>⏳</span> Crafting Masterclass (${topic.slice(0, 20)}...)`;
 
     try {
       const generatedPost = await GeminiClient.generate(prompt, currentSettings.apiKey, {
@@ -260,7 +295,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       outputCard.scrollIntoView({ behavior: 'smooth' });
       await StorageManager.incrementActivity('posts');
       updateDailyTracker();
-      showToast('✨ Full-length post generated! Edit & format below.');
+      showToast('✨ Masterclass post generated! Edit & format below.');
     } catch (err) {
       alert(`Generation failed: ${err.message}`);
     } finally {
@@ -329,7 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Copied post & opening LinkedIn...');
   });
 
-  // TAB 2: COMMENT COPILOT
+  // TAB 3: COMMENT COPILOT
   grabPostBtn.addEventListener('click', async () => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -421,7 +456,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const textBody = card.querySelector('.comment-text-body');
 
-      // 1-Click Insert
       card.querySelector('.insert-c-btn').addEventListener('click', async () => {
         const commentToInsert = textBody.textContent.trim();
         if (typeof chrome !== 'undefined' && chrome.tabs) {
@@ -444,7 +478,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('📋 Comment copied to clipboard!');
       });
 
-      // Refinement Buttons
       card.querySelector('.btn-shorter').addEventListener('click', async () => {
         textBody.textContent = '⏳ Trimming to punchy sentence...';
         try {
@@ -490,7 +523,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   generateCommentsBtn.addEventListener('click', generateComments);
 
-  // TAB 3: Hooks
+  // TAB 4: Hooks
   generateHooksBtn.addEventListener('click', async () => {
     const topic = hookTopicInput.value.trim() || selectedTopic;
     if (!topic) {
