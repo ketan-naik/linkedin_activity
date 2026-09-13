@@ -28,8 +28,11 @@
       <button class="nav-tab active" data-tab="tab-post-creator">
         <span class="tab-icon">✍️</span> Post Studio
       </button>
+      <button class="nav-tab" data-tab="tab-comment-copilot">
+        <span class="tab-icon">💬</span> Comments
+      </button>
       <button class="nav-tab" data-tab="tab-hooks">
-        <span class="tab-icon">🎣</span> Viral Hooks
+        <span class="tab-icon">🎣</span> Hooks
       </button>
       <button class="nav-tab" data-tab="tab-drafts">
         <span class="tab-icon">📁</span> Drafts <span class="draft-count" id="draft-counter">0</span>
@@ -69,7 +72,7 @@
         </div>
 
         <div class="field-group" style="margin-top: 10px;">
-          <label class="field-label" for="post-notes-input">📝 Extra Details / Raw Bullet Points (Optional)</label>
+          <label class="field-label" for="post-notes-input">📝 Extra Details / Context (Optional)</label>
           <textarea id="post-notes-input" class="textarea-input" rows="2" placeholder="e.g. Reduced runtime from 4 hours to 18 mins using salting and broadcast join..."></textarea>
         </div>
 
@@ -112,7 +115,40 @@
       </div>
     </section>
 
-    <!-- TAB 2: Viral Hooks Optimizer -->
+    <!-- TAB 2: Comment Copilot (Inside Extension Side Panel) -->
+    <section class="tab-content" id="tab-comment-copilot">
+      <div class="section-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label class="field-label" style="margin: 0;">💬 Comment Generator</label>
+          <button id="grab-post-btn" class="action-btn action-accent" style="padding: 4px 8px; font-size: 11px;">
+            <span>📥</span> Grab Post from Page
+          </button>
+        </div>
+        <p class="field-hint">Paste any LinkedIn post text or click "Grab Post from Page" to auto-extract:</p>
+        <textarea id="comment-post-input" class="textarea-input" rows="4" placeholder="Paste LinkedIn post text here..."></textarea>
+      </div>
+
+      <div class="section-card">
+        <label class="field-label">Persona Style</label>
+        <div class="topic-pills" id="comment-persona-pills">
+          <button class="topic-pill active" data-style="practical_experience">💡 Practical Nuance</button>
+          <button class="topic-pill" data-style="architectural_tradeoff">⚖️ Trade-off</button>
+          <button class="topic-pill" data-style="thoughtful_question">❓ Senior Inquiry</button>
+          <button class="topic-pill" data-style="concise_value">⚡ Quick Insight</button>
+        </div>
+
+        <button id="generate-comments-btn" class="primary-btn" style="margin-top: 8px;">
+          <span>✨</span> Generate 3 DE Comments
+        </button>
+      </div>
+
+      <div id="comment-results-container" class="section-card" style="display: none;">
+        <label class="field-label">👇 Click to Copy or Insert into LinkedIn:</label>
+        <div class="hooks-list" id="comments-list"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Viral Hooks Optimizer -->
     <section class="tab-content" id="tab-hooks">
       <div class="section-card">
         <label class="field-label">🎣 Generate 3 High-Dwell Hooks for any DE Topic</label>
@@ -131,7 +167,7 @@
       </div>
     </section>
 
-    <!-- TAB 3: Saved Drafts -->
+    <!-- TAB 4: Saved Drafts -->
     <section class="tab-content" id="tab-drafts">
       <div class="drafts-header">
         <h3 style="font-size: 14px; color: #E1E9EE; margin: 0;">Saved Posts & Drafts</h3>
@@ -142,7 +178,7 @@
       </div>
     </section>
 
-    <!-- TAB 4: Settings -->
+    <!-- TAB 5: Settings -->
     <section class="tab-content" id="tab-settings">
       <div class="section-card">
         <h3 class="card-title">🔑 Google Gemini Free API Key</h3>

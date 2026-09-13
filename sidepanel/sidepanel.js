@@ -1,7 +1,6 @@
 // sidepanel/sidepanel.js - Main logic for LinkedIn DE Copilot Studio
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Elements
   const tabs = document.querySelectorAll('.nav-tab');
   const tabContents = document.querySelectorAll('.tab-content');
   const apiStatusIndicator = document.getElementById('api-status-indicator');
@@ -29,17 +28,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   const formatBulletCheckBtn = document.getElementById('format-bullet-check');
   const formatCodeBtn = document.getElementById('format-code');
 
-  // Tab 2: Hooks Elements
+  // Tab 2: Comment Copilot Elements
+  const grabPostBtn = document.getElementById('grab-post-btn');
+  const commentPostInput = document.getElementById('comment-post-input');
+  const commentPersonaPills = document.getElementById('comment-persona-pills');
+  const generateCommentsBtn = document.getElementById('generate-comments-btn');
+  const commentResultsContainer = document.getElementById('comment-results-container');
+  const commentsList = document.getElementById('comments-list');
+
+  // Tab 3: Hooks Elements
   const hookTopicInput = document.getElementById('hook-topic-input');
   const generateHooksBtn = document.getElementById('generate-hooks-btn');
   const hooksResultsCard = document.getElementById('hooks-results-card');
   const hooksListContainer = document.getElementById('hooks-list-container');
 
-  // Tab 3: Drafts Elements
+  // Tab 4: Drafts Elements
   const draftsListContainer = document.getElementById('drafts-list-container');
   const clearDraftsBtn = document.getElementById('clear-drafts-btn');
 
-  // Tab 4: Settings Elements
+  // Tab 5: Settings Elements
   const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
   const toggleKeyVisibilityBtn = document.getElementById('toggle-key-visibility-btn');
   const testSaveApiBtn = document.getElementById('test-save-api-btn');
@@ -50,8 +57,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let currentSettings = await StorageManager.getSettings();
   let selectedTopic = 'PySpark Partition Skew & Memory Spill';
+  let selectedCommentPersona = 'practical_experience';
 
-  // Helper: Show toast
   function showToast(message) {
     if (!appToast) return;
     appToast.textContent = message;
@@ -59,7 +66,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => appToast.classList.remove('show'), 2600);
   }
 
-  // Update Status Indicator
   async function updateApiStatus() {
     const dot = apiStatusIndicator.querySelector('.status-dot');
     const text = apiStatusIndicator.querySelector('.status-text');
@@ -74,7 +80,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     text.textContent = 'Free AI Ready';
   }
 
-  // Update Drafts Count Badge
   async function updateDraftsList() {
     const drafts = await StorageManager.getDrafts();
     draftCounter.textContent = drafts.length;
@@ -105,7 +110,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
 
-      // Handlers
       card.querySelector('.load-draft-btn').addEventListener('click', () => {
         postOutputTextarea.value = draft.content;
         updateCharCounter();
@@ -129,7 +133,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Switch Tab Helper
   function switchTab(targetTabId) {
     tabs.forEach(t => t.classList.remove('active'));
     tabContents.forEach(c => c.classList.remove('active'));
@@ -141,22 +144,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activeContent) activeContent.classList.add('active');
   }
 
-  // Initialize Settings in UI
+  // Init UI
   geminiApiKeyInput.value = currentSettings.apiKey || '';
   customBioInput.value = currentSettings.customBio || '';
   settingAutoLike.checked = currentSettings.autoLike || false;
   updateApiStatus();
   updateDraftsList();
 
-  // Tab Switching
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      const target = tab.getAttribute('data-tab');
-      switchTab(target);
+      switchTab(tab.getAttribute('data-tab'));
     });
   });
 
-  // Topic Matrix selection
   topicPillsContainer.querySelectorAll('.topic-pill').forEach(pill => {
     pill.addEventListener('click', () => {
       topicPillsContainer.querySelectorAll('.topic-pill').forEach(p => p.classList.remove('active'));
@@ -173,14 +173,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Character Counter
   function updateCharCounter() {
     const len = postOutputTextarea.value.length;
     charCounter.textContent = `${len} chars (Recommended: 800 - 1800)`;
   }
   postOutputTextarea.addEventListener('input', updateCharCounter);
 
-  // Generate Post Handler
+  // Generate Post
   generatePostBtn.addEventListener('click', async () => {
     const topic = customTopicInput.value.trim() || selectedTopic;
     if (!topic) {
@@ -221,17 +220,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Text Selection & Formatting Helpers
+  // Formatting tools
   function transformSelectedText(transformer) {
     const start = postOutputTextarea.selectionStart;
     const end = postOutputTextarea.selectionEnd;
     const val = postOutputTextarea.value;
-
     if (start === end) {
       showToast('Highlight some text first to apply styling.');
       return;
     }
-
     const selected = val.substring(start, end);
     const transformed = transformer(selected);
     postOutputTextarea.value = val.substring(0, start) + transformed + val.substring(end);
@@ -257,7 +254,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   formatBulletCheckBtn.addEventListener('click', () => insertAtCursor('\n✅ '));
   formatCodeBtn.addEventListener('click', () => transformSelectedText(t => `\`${t}\``));
 
-  // Post Actions
   copyPostBtn.addEventListener('click', () => {
     const text = postOutputTextarea.value;
     if (!text) return;
@@ -284,7 +280,139 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Copied post & opening LinkedIn...');
   });
 
-  // Viral Hooks Generator
+  // TAB 2: COMMENT COPILOT IN SIDEPANEL
+  grabPostBtn.addEventListener('click', async () => {
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        try {
+          const [{ result }] = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              const textEl = document.querySelector(
+                '.feed-shared-update-v2__description, .feed-shared-text, .update-components-text, .feed-shared-inline-show-more-text, .feed-shared-update-v2__commentary'
+              );
+              return textEl ? textEl.innerText.trim() : window.getSelection().toString();
+            }
+          });
+          if (result) {
+            commentPostInput.value = result;
+            showToast('📥 Grabbed post text from page!');
+          } else {
+            showToast('No post text found on page. Please select or paste text.');
+          }
+        } catch (e) {
+          showToast('Could not grab post: ' + e.message);
+        }
+      }
+    }
+  });
+
+  commentPersonaPills.querySelectorAll('.topic-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      commentPersonaPills.querySelectorAll('.topic-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      selectedCommentPersona = pill.getAttribute('data-style');
+    });
+  });
+
+  generateCommentsBtn.addEventListener('click', async () => {
+    const postText = commentPostInput.value.trim();
+    if (!postText) {
+      showToast('Please paste or grab a post text first.');
+      return;
+    }
+
+    if (!currentSettings.apiKey) {
+      switchTab('tab-settings');
+      showToast('Please set your free Gemini API key.');
+      return;
+    }
+
+    generateCommentsBtn.disabled = true;
+    generateCommentsBtn.innerHTML = '<span>⏳</span> Generating DE Comments...';
+
+    try {
+      const suggestions = await GeminiClient.generateCommentSuggestions(
+        postText,
+        'LinkedIn Peer',
+        currentSettings.apiKey,
+        currentSettings.customBio
+      );
+
+      commentsList.innerHTML = '';
+      suggestions.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'hook-item-card';
+        card.style.cursor = 'default';
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="color: var(--accent-cyan);">${item.emoji || '💡'} ${item.label || item.style}</strong>
+          </div>
+          <div style="font-size: 12.5px; line-height: 1.45; color: var(--text-primary); margin-bottom: 8px;">${item.comment}</div>
+          <div style="display: flex; gap: 6px;">
+            <button class="action-btn action-primary copy-c-btn" style="padding: 4px 10px; font-size: 11px;">📋 Copy Comment</button>
+            <button class="action-btn action-accent insert-c-btn" style="padding: 4px 10px; font-size: 11px;">✍️ Insert into LinkedIn</button>
+          </div>
+        `;
+
+        card.querySelector('.copy-c-btn').addEventListener('click', () => {
+          navigator.clipboard.writeText(item.comment);
+          showToast('📋 Comment copied to clipboard!');
+        });
+
+        card.querySelector('.insert-c-btn').addEventListener('click', async () => {
+          navigator.clipboard.writeText(item.comment);
+          if (typeof chrome !== 'undefined' && chrome.tabs) {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab?.id) {
+              await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                args: [item.comment, currentSettings.autoLike],
+                func: (commentText, shouldLike) => {
+                  let editor = document.querySelector(
+                    'div.ql-editor[contenteditable="true"], .comments-comment-box [contenteditable="true"], div[contenteditable="true"]'
+                  );
+                  if (!editor) {
+                    const commentBtn = document.querySelector('button[aria-label*="Comment"], .comment-button');
+                    if (commentBtn) commentBtn.click();
+                    editor = document.querySelector('div[contenteditable="true"], .comments-comment-box [contenteditable="true"]');
+                  }
+                  if (editor) {
+                    editor.focus();
+                    const p = editor.querySelector('p') || editor;
+                    p.textContent = commentText;
+                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                    editor.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+                  if (shouldLike) {
+                    const likeBtn = document.querySelector('button[aria-label*="Like"], .react-button__trigger');
+                    if (likeBtn && !likeBtn.classList.contains('react-button--active')) {
+                      likeBtn.click();
+                    }
+                  }
+                }
+              });
+              showToast('✍️ Comment inserted into LinkedIn page!');
+            }
+          }
+        });
+
+        commentsList.appendChild(card);
+      });
+
+      commentResultsContainer.style.display = 'block';
+      commentResultsContainer.scrollIntoView({ behavior: 'smooth' });
+      showToast('3 DE Comments ready!');
+    } catch (err) {
+      alert(`Comment generation error: ${err.message}`);
+    } finally {
+      generateCommentsBtn.disabled = false;
+      generateCommentsBtn.innerHTML = '<span>✨</span> Generate 3 DE Comments';
+    }
+  });
+
+  // TAB 3: Viral Hooks
   generateHooksBtn.addEventListener('click', async () => {
     const topic = hookTopicInput.value.trim() || selectedTopic;
     if (!topic) {
@@ -299,7 +427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     generateHooksBtn.disabled = true;
-    generateHooksBtn.innerHTML = `<span>⏳</span> Generating...`;
+    generateHooksBtn.innerHTML = '<span>⏳</span> Generating...';
 
     try {
       const hooks = await GeminiClient.generateHooks(topic, currentSettings.apiKey);
@@ -326,7 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert(`Hooks generation error: ${err.message}`);
     } finally {
       generateHooksBtn.disabled = false;
-      generateHooksBtn.innerHTML = `<span>✨</span> Generate`;
+      generateHooksBtn.innerHTML = '<span>✨</span> Generate';
     }
   });
 
@@ -356,7 +484,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     testSaveApiBtn.disabled = true;
-    testSaveApiBtn.textContent = 'Testing connection with Gemini 1.5 Flash...';
+    testSaveApiBtn.textContent = 'Testing connection with Gemini Flash...';
 
     const test = await GeminiClient.validateApiKey(key);
     if (test.valid) {
@@ -365,7 +493,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateApiStatus();
 
       apiTestResult.className = 'api-test-feedback success';
-      apiTestResult.innerHTML = '✅ <strong>Connected!</strong> Google Gemini Flash API is active and ready.';
+      apiTestResult.innerHTML = `✅ <strong>Connected!</strong> Google Gemini Flash is active (${test.model || 'gemini-3.6-flash'}).`;
       showToast('API key saved & verified!');
     } else {
       apiTestResult.className = 'api-test-feedback error';
@@ -373,7 +501,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     testSaveApiBtn.disabled = false;
-    testSaveApiBtn.innerHTML = `<span>💾</span> Save & Test Connection`;
+    testSaveApiBtn.innerHTML = '<span>💾</span> Save & Test Connection';
   });
 
   savePreferencesBtn.addEventListener('click', async () => {
