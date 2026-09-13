@@ -1,7 +1,7 @@
-// content/injector.js - Enhanced LinkedIn In-Feed DE Copilot Injector
+// content/injector.js - Robust Multi-Anchor LinkedIn DE Copilot Injector
 
 (function () {
-  console.log('[LinkedIn DE Copilot] Content script active and monitoring feed...');
+  console.log('%c[LinkedIn DE Copilot]%c Content script loaded & monitoring feed!', 'color: #00D2FF; font-weight: bold;', 'color: #fff;');
 
   let activePopover = null;
 
@@ -29,13 +29,13 @@
 
     // Author
     const authorEl = postEl.querySelector(
-      '.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title, .feed-shared-actor__title, .actor-name, a[href*="/in/"] span[aria-hidden="true"]'
+      '.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title, .feed-shared-actor__title, .actor-name, a[href*="/in/"] span[aria-hidden="true"], .feed-shared-actor__container-link'
     );
     let author = authorEl ? authorEl.innerText.trim().split('\n')[0] : 'Data Engineering Author';
 
     // Post content text
     const textEl = postEl.querySelector(
-      '.feed-shared-update-v2__description, .feed-shared-text, .update-components-text, .feed-shared-inline-show-more-text, .feed-shared-text-view, [data-ad-preview="message"]'
+      '.feed-shared-update-v2__description, .feed-shared-text, .update-components-text, .feed-shared-inline-show-more-text, .feed-shared-text-view, [data-ad-preview="message"], .feed-shared-update-v2__commentary'
     );
     let text = textEl ? textEl.innerText.trim() : '';
 
@@ -44,28 +44,26 @@
 
   // Helper: Find or expand comment box for a post
   function getOrOpenCommentBox(postEl) {
-    // Check if editor is already open
+    if (!postEl) return null;
+
     let editor = postEl.querySelector(
-      '.comments-comment-box div.ql-editor[contenteditable="true"], .comments-comment-texteditor div[contenteditable="true"], div[contenteditable="true"], .comments-comment-box__form [contenteditable="true"]'
+      'div.ql-editor[contenteditable="true"], .comments-comment-box [contenteditable="true"], div[contenteditable="true"], .comments-comment-box-comment__text-editor [contenteditable="true"]'
     );
 
     if (editor) return editor;
 
-    // If collapsed, trigger the LinkedIn comment button
+    // If collapsed, trigger comment button
     const commentBtn = postEl.querySelector(
-      'button[aria-label*="Comment"], .comment-button, button.artdeco-button--tertiary.social-actions-button'
+      'button[aria-label*="Comment"], button[aria-label*="comment"], .comment-button, button.artdeco-button--tertiary.social-actions-button'
     );
     if (commentBtn) {
       commentBtn.click();
     }
 
-    // Wait a brief moment for editor to render
-    return postEl.querySelector(
-      '.comments-comment-box div.ql-editor[contenteditable="true"], div[contenteditable="true"]'
-    );
+    return postEl.querySelector('div[contenteditable="true"], .comments-comment-box [contenteditable="true"]');
   }
 
-  // Helper: Insert text into LinkedIn editor with simulated human typing
+  // Helper: Insert text into LinkedIn editor
   function insertTextIntoEditor(editorEl, textToInsert) {
     if (!editorEl) return false;
 
@@ -74,7 +72,6 @@
     const pTag = editorEl.querySelector('p') || editorEl;
     pTag.textContent = textToInsert;
 
-    // Trigger synthetic input events so LinkedIn React / Quill registers state change
     editorEl.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
     editorEl.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
     editorEl.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: ' ', code: 'Space' }));
@@ -87,7 +84,7 @@
   function triggerPostLike(postEl) {
     if (!postEl) return;
     const likeBtn = postEl.querySelector(
-      'button.react-button__trigger, button[aria-label*="React Like"], button[aria-label*="Like"], .reactions-react-button button'
+      'button.react-button__trigger, button[aria-label*="React Like"], button[aria-label*="Like"], button[aria-label*="like"], .reactions-react-button button'
     );
 
     if (likeBtn) {
@@ -144,19 +141,16 @@
       </div>
     `;
 
-    // Position popover relative to anchor
     anchorEl.style.position = 'relative';
     anchorEl.appendChild(popover);
     activePopover = popover;
 
-    // Close button
     popover.querySelector('.de-copilot-close-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       popover.remove();
       activePopover = null;
     });
 
-    // Open Studio in side panel
     popover.querySelector('#de-open-studio-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -164,7 +158,6 @@
       }
     });
 
-    // Check API Key
     if (!settings.apiKey) {
       const suggestionsEl = popover.querySelector('.de-copilot-suggestions');
       suggestionsEl.innerHTML = `
@@ -176,7 +169,6 @@
       return;
     }
 
-    // Function to load and render suggestions
     async function loadSuggestions() {
       const suggestionsEl = popover.querySelector('.de-copilot-suggestions');
       suggestionsEl.innerHTML = `
@@ -239,7 +231,6 @@
       }
     }
 
-    // Persona pill click handlers
     popover.querySelectorAll('.de-copilot-pill').forEach((pill) => {
       pill.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -300,89 +291,104 @@
       });
     });
 
-    // Auto-load 3 suggestions initially
     loadSuggestions();
   }
 
   // Scan LinkedIn DOM and inject buttons
   function scanAndInject() {
-    // 1. Target Post Action Bars (Like, Comment, Repost, Send row)
-    const actionBars = document.querySelectorAll(
-      '.feed-shared-social-actions, .social-details-social-actions, .feed-shared-social-action-bar'
+    // Select all posts
+    const postCards = document.querySelectorAll(
+      '[data-urn*="activity:"], .feed-shared-update-v2, .occludable-update, div[data-id*="urn:li:activity"], .artdeco-card'
     );
 
-    actionBars.forEach((bar) => {
-      if (bar.querySelector('.de-copilot-action-bar-btn')) return;
-
-      const postEl = bar.closest(
-        '[data-urn*="activity:"], .feed-shared-update-v2, .occludable-update, div[data-id*="urn:li:activity"], .artdeco-card'
+    postCards.forEach((postEl) => {
+      // 1. Post Action Row (Like, Comment, Repost, Send)
+      const actionRow = postEl.querySelector(
+        '.feed-shared-social-actions, .social-details-social-actions, .feed-shared-social-action-bar, .social-actions-bar'
       );
 
-      const btnWrapper = document.createElement('span');
-      btnWrapper.className = 'de-copilot-action-bar-btn-wrapper';
+      if (actionRow && !actionRow.querySelector('.de-copilot-action-bar-btn-wrapper')) {
+        const btnWrapper = document.createElement('span');
+        btnWrapper.className = 'de-copilot-action-bar-btn-wrapper';
 
-      const actionBtn = document.createElement('button');
-      actionBtn.type = 'button';
-      actionBtn.className = 'de-copilot-action-bar-btn artdeco-button artdeco-button--muted artdeco-button--4 artdeco-button--tertiary';
-      actionBtn.innerHTML = `
-        <span class="de-sparkle-icon">⚡</span>
-        <span class="de-btn-text">AI DE Reply</span>
-      `;
+        const actionBtn = document.createElement('button');
+        actionBtn.type = 'button';
+        actionBtn.className = 'de-copilot-action-bar-btn';
+        actionBtn.innerHTML = `
+          <span class="de-sparkle-icon">⚡</span>
+          <span>AI DE Reply</span>
+        `;
 
-      actionBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openCopilotPopover(btnWrapper, postEl);
-      });
+        actionBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openCopilotPopover(btnWrapper, postEl);
+        });
 
-      btnWrapper.appendChild(actionBtn);
+        btnWrapper.appendChild(actionBtn);
 
-      // Insert right after the Comment button or append to action bar
-      const commentAction = bar.querySelector('.comment-button, button[aria-label*="Comment"]')?.parentElement || bar.children[1];
-      if (commentAction && commentAction.parentNode === bar) {
-        bar.insertBefore(btnWrapper, commentAction.nextSibling);
-      } else {
-        bar.appendChild(btnWrapper);
+        // Place right after Comment button or prepend
+        const commentBtn = actionRow.querySelector('button[aria-label*="Comment"], .comment-button');
+        if (commentBtn && commentBtn.parentElement && commentBtn.parentElement !== actionRow) {
+          commentBtn.parentElement.after(btnWrapper);
+        } else {
+          actionRow.appendChild(btnWrapper);
+        }
       }
-    });
 
-    // 2. Target Comment Input Boxes (Add a comment... pill / editor)
-    const commentBoxes = document.querySelectorAll(
-      '.comments-comment-box, .comments-comment-texteditor, .comments-comment-box__input-container, form.comments-comment-box__form'
-    );
-
-    commentBoxes.forEach((box) => {
-      if (box.querySelector('.de-copilot-comment-inline-btn') || box.parentElement?.querySelector('.de-copilot-comment-inline-btn')) return;
-
-      const postEl = box.closest(
-        '[data-urn*="activity:"], .feed-shared-update-v2, .occludable-update, div[data-id*="urn:li:activity"], .artdeco-card'
+      // 2. Comment Input Row ("Add a comment..." pill)
+      const commentBoxes = postEl.querySelectorAll(
+        '.comments-comment-box, .comments-comment-texteditor, .comments-comment-box__input-container, form.comments-comment-box__form, .feed-shared-update-v2__comments-container'
       );
 
-      const inlineContainer = document.createElement('div');
-      inlineContainer.className = 'de-copilot-comment-inline-btn';
+      commentBoxes.forEach((box) => {
+        if (box.querySelector('.de-copilot-comment-inline-btn') || box.parentElement?.querySelector('.de-copilot-comment-inline-btn')) return;
 
-      const inlineBtn = document.createElement('button');
-      inlineBtn.type = 'button';
-      inlineBtn.className = 'de-copilot-trigger-btn';
-      inlineBtn.innerHTML = `
-        <span class="de-sparkle">✨</span>
-        <span>AI DE Reply</span>
-      `;
+        const inlineContainer = document.createElement('div');
+        inlineContainer.className = 'de-copilot-comment-inline-btn';
 
-      inlineBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openCopilotPopover(inlineContainer, postEl);
+        const inlineBtn = document.createElement('button');
+        inlineBtn.type = 'button';
+        inlineBtn.className = 'de-copilot-trigger-btn';
+        inlineBtn.innerHTML = `
+          <span class="de-sparkle">✨</span>
+          <span>AI DE Reply</span>
+        `;
+
+        inlineBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openCopilotPopover(inlineContainer, postEl);
+        });
+
+        inlineContainer.appendChild(inlineBtn);
+
+        if (box.parentNode) {
+          box.parentNode.insertBefore(inlineContainer, box);
+        }
       });
-
-      inlineContainer.appendChild(inlineBtn);
-
-      // Place neatly above the input box
-      if (box.parentNode) {
-        box.parentNode.insertBefore(inlineContainer, box);
-      }
     });
   }
+
+  // Interactive Focus/Click Listener on any comment editor
+  document.addEventListener('focusin', (e) => {
+    const target = e.target;
+    if (target && (target.matches('[contenteditable="true"], .ql-editor, [data-placeholder*="comment"]') || target.closest('.comments-comment-box'))) {
+      const postEl = target.closest('[data-urn*="activity:"], .feed-shared-update-v2, .artdeco-card');
+      const container = target.closest('.comments-comment-box') || target.parentElement;
+      if (container && !container.querySelector('.de-copilot-trigger-btn') && !container.parentElement?.querySelector('.de-copilot-trigger-btn')) {
+        const floatBtn = document.createElement('div');
+        floatBtn.className = 'de-copilot-comment-inline-btn';
+        floatBtn.innerHTML = `<button type="button" class="de-copilot-trigger-btn"><span class="de-sparkle">✨</span> <span>AI DE Reply</span></button>`;
+        floatBtn.querySelector('button').addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          openCopilotPopover(floatBtn, postEl);
+        });
+        container.parentNode.insertBefore(floatBtn, container);
+      }
+    }
+  });
 
   // Close active popover when clicking outside
   document.addEventListener('click', (e) => {
@@ -392,14 +398,10 @@
     }
   });
 
-  // Initial scan and continuous observer for infinite scroll
-  setTimeout(scanAndInject, 1000);
+  // Continuous injection scans
+  setInterval(scanAndInject, 1200);
+  scanAndInject();
 
-  let debounceTimer = null;
-  const observer = new MutationObserver(() => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(scanAndInject, 500);
-  });
-
+  const observer = new MutationObserver(scanAndInject);
   observer.observe(document.body, { childList: true, subtree: true });
 })();
