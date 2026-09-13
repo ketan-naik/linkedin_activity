@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-green.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![AI Backend](https://img.shields.io/badge/AI-Google%20Gemini%20Flash%20(100%25%20Free)-orange.svg)](https://aistudio.google.com/)
+[![Keyboard Shortcut](https://img.shields.io/badge/Shortcut-Alt%2BC-purple.svg)](README.md)
 
 A **100% free**, open-source Chrome extension and growth copilot built specifically for **Data Engineers**, Distributed Systems Architects, and Technical Creators on LinkedIn.
 
@@ -14,10 +15,14 @@ A **100% free**, open-source Chrome extension and growth copilot built specifica
 - **Interactive Comment Banner**: Displays a 1-click **`✨ Generate AI Reply for this post`** banner whenever you click into any comment box on LinkedIn.
 - **Deep Context Extraction**: Automatically reads the post commentary, author, and infographic architecture topics (AWS, Spark, Iceberg, Snowflake, Kafka).
 - **Sub-Comment Thread Support**: Click **`⚡ AI Reply`** under individual comments to reply directly to peers in a discussion thread.
-- **3 Distinct Technical Personas**:
-  - 💡 **Practical Nuance**: Pipeline edge cases, partition skew, memory spill, dbt incremental traps, schema drift.
-  - ⚖️ **Architectural Trade-off**: Cost vs. latency, compute optimization, batch vs. real-time streaming tradeoffs.
-  - ❓ **Senior Inquiry**: Thoughtful production questions regarding scale, idempotency, and data contracts.
+- **Length Control**:
+  - ⚡ **Punchy (1–2 lines)**: Fast, high-impact engagement on viral posts.
+  - 💬 **Standard (2–3 sentences)**: Balanced technical nuance.
+  - 📜 **Deep-Dive (4–5 sentences)**: Rich breakdown with technical metrics.
+- **Micro-Refinements**:
+  - ✂️ **Shorter**: Instantly condenses the comment into 1 punchy sentence.
+  - ⚡ **Add Config**: Injects concrete parameters (e.g. `spark.sql.adaptive.skewJoin.enabled`, dbt incremental `unique_key`, Iceberg compaction).
+  - 🔄 **Regenerate**: Fetches a fresh perspective.
 - **1-Click Insertion**: Drops the generated reply directly into the LinkedIn comment box with optional auto-like.
 
 ### 2. ✍️ Data Engineering Post Studio (Side Panel)
@@ -25,14 +30,20 @@ A **100% free**, open-source Chrome extension and growth copilot built specifica
   - 🏗️ *System Design & Case Study*
   - ⚔️ *Tool Benchmark & Comparison* (e.g. Polars vs DuckDB, Iceberg vs Delta)
   - 💥 *Gotchas & Incident Breakdown*
+  - 📑 *LinkedIn PDF Carousel Outline* (Slide-by-slide visual blueprint)
   - 💻 *PySpark / SQL / Python Code Tip*
   - 🚀 *Career & DE Mindset*
 - **Unicode Formatting Toolbar**: 1-click **Bold**, *Italic*, 🔹 bullets, 👉 arrows, and code blocks for clean mobile formatting.
 
-### 3. 🎣 Viral Hooks Optimizer
-- Generates 3 high-converting, scroll-stopping technical hooks for any data engineering topic to maximize dwell time.
+### 3. 🔥 Daily Growth & Habit Tracker
+- Tracks your daily LinkedIn engagement goal:
+  - 💬 *Daily Comments Progress Bar (Goal: 10/day)*
+  - 🔥 *Daily Consistency Streak Counter*
 
-### 4. 📁 Local Drafts Manager & 100% Privacy
+### 4. ⌨️ Global Keyboard Shortcut (`Alt + C`)
+- Press **`Alt + C`** on any tab to immediately open your DE Copilot sidepanel.
+
+### 5. 📁 Local Drafts Manager & 100% Privacy
 - Saves your drafts locally in your browser storage.
 - **Zero Third-Party Servers**: Your API key stays in `chrome.storage.local` and is never shared with any middleman.
 
@@ -79,7 +90,7 @@ Choose whichever option is easier for you:
 
 ### Step 4: Activate the Extension
 
-1. Click the **⚡ LinkedIn DE Copilot** icon in your browser toolbar to open the Side Panel.
+1. Click the **⚡ LinkedIn DE Copilot** icon in your browser toolbar (or press **`Alt + C`**) to open the Side Panel.
 2. Click the **⚙️ Settings** tab.
 3. Paste your Gemini API key into the input box and click **"Save & Test Connection"**.
 4. You will see a green **Connected!** badge. Your extension is now ready to use!
@@ -97,7 +108,7 @@ Choose whichever option is easier for you:
 
 * **Creating Viral Technical Posts**:
   1. Open the extension sidepanel and click the **✍️ Post Studio** tab.
-  2. Select a topic (or type your own) and choose a framework (e.g., *System Design Case Study* or *Gotchas Breakdown*).
+  2. Select a topic (or type your own) and choose a framework (e.g., *System Design Case Study* or *PDF Carousel Outline*).
   3. Click **"🚀 Generate DE Post"**.
   4. Use the toolbar to style with **Unicode Bold**, *Italics*, or bullets, then click **"📋 Copy Post"**!
 

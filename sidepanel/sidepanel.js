@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const draftCounter = document.getElementById('draft-counter');
   const appToast = document.getElementById('app-toast');
 
+  // Daily Tracker
+  const streakDays = document.getElementById('streak-days');
+  const dailyCommentsCount = document.getElementById('daily-comments-count');
+  const commentsProgress = document.getElementById('comments-progress');
+
   // Tab 1: Post Creator Elements
   const topicPillsContainer = document.getElementById('topic-pills-container');
   const customTopicInput = document.getElementById('custom-topic-input');
@@ -31,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Tab 2: Comment Copilot Elements
   const grabPostBtn = document.getElementById('grab-post-btn');
   const commentPostInput = document.getElementById('comment-post-input');
-  const commentPersonaPills = document.getElementById('comment-persona-pills');
+  const commentLengthPills = document.getElementById('comment-length-pills');
   const generateCommentsBtn = document.getElementById('generate-comments-btn');
   const commentResultsContainer = document.getElementById('comment-results-container');
   const commentsList = document.getElementById('comments-list');
@@ -57,13 +62,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let currentSettings = await StorageManager.getSettings();
   let selectedTopic = 'PySpark Partition Skew & Memory Spill';
-  let selectedCommentPersona = 'practical_experience';
+  let selectedLength = 'standard';
 
   function showToast(message) {
     if (!appToast) return;
     appToast.textContent = message;
     appToast.classList.add('show');
     setTimeout(() => appToast.classList.remove('show'), 2600);
+  }
+
+  async function updateDailyTracker() {
+    const stats = await StorageManager.getDailyStats();
+    if (streakDays) streakDays.textContent = stats.streak || 1;
+    if (dailyCommentsCount) dailyCommentsCount.textContent = stats.comments || 0;
+    if (commentsProgress) {
+      const pct = Math.min(100, Math.round(((stats.comments || 0) / 10) * 100));
+      commentsProgress.style.width = `${pct}%`;
+    }
   }
 
   async function updateApiStatus() {
@@ -144,22 +159,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activeContent) activeContent.classList.add('active');
   }
 
-  // Check if there is a pending reply from in-page click
+  // Check pending reply
   async function checkPendingReply() {
     chrome.storage.local.get(['pending_post_reply'], (res) => {
       if (res.pending_post_reply && res.pending_post_reply.postText) {
         const { postText } = res.pending_post_reply;
         commentPostInput.value = postText;
         switchTab('tab-comment-copilot');
-        // Clear pending so it doesn't loop
         chrome.storage.local.remove(['pending_post_reply']);
-        // Automatically generate comments
         generateComments();
       }
     });
   }
 
-  // Listen for trigger message while sidepanel is open
   chrome.runtime.onMessage.addListener((request) => {
     if (request.type === 'TRIGGER_COPILOT_REPLY') {
       commentPostInput.value = request.postText || '';
@@ -168,12 +180,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Length Pills selection
+  commentLengthPills.querySelectorAll('.length-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      commentLengthPills.querySelectorAll('.length-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      selectedLength = pill.getAttribute('data-len');
+    });
+  });
+
   // Init UI
   geminiApiKeyInput.value = currentSettings.apiKey || '';
   customBioInput.value = currentSettings.customBio || '';
   settingAutoLike.checked = currentSettings.autoLike || false;
   updateApiStatus();
   updateDraftsList();
+  updateDailyTracker();
   checkPendingReply();
 
   tabs.forEach(tab => {
@@ -229,14 +251,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const generatedPost = await GeminiClient.generate(prompt, currentSettings.apiKey, {
         temperature: 0.75,
-        maxOutputTokens: 1500
+        maxOutputTokens: 2500
       });
 
       postOutputTextarea.value = generatedPost;
       updateCharCounter();
       outputCard.style.display = 'flex';
       outputCard.scrollIntoView({ behavior: 'smooth' });
-      showToast('✨ Post generated! Edit & format below.');
+      await StorageManager.incrementActivity('posts');
+      updateDailyTracker();
+      showToast('✨ Full-length post generated! Edit & format below.');
     } catch (err) {
       alert(`Generation failed: ${err.message}`);
     } finally {
@@ -334,14 +358,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  commentPersonaPills.querySelectorAll('.topic-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      commentPersonaPills.querySelectorAll('.topic-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      selectedCommentPersona = pill.getAttribute('data-style');
-    });
-  });
-
   async function generateComments() {
     const postText = commentPostInput.value.trim();
     if (!postText) {
@@ -365,57 +381,111 @@ document.addEventListener('DOMContentLoaded', async () => {
         postText,
         'LinkedIn Peer',
         currentSettings.apiKey,
-        currentSettings.customBio
+        currentSettings.customBio,
+        selectedLength
       );
 
-      commentsList.innerHTML = '';
-      suggestions.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'hook-item-card';
-        card.style.cursor = 'default';
-        card.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <strong style="color: var(--accent-cyan);">${item.emoji || '💡'} ${item.label || item.style}</strong>
-          </div>
-          <div style="font-size: 12.5px; line-height: 1.45; color: var(--text-primary); margin-bottom: 10px;">${item.comment}</div>
-          <div style="display: flex; gap: 8px;">
-            <button class="action-btn action-primary insert-c-btn" style="flex: 1; padding: 6px 12px; font-size: 11.5px; font-weight: 700;">✍️ Insert into Comment Box</button>
-            <button class="action-btn action-secondary copy-c-btn" style="padding: 6px 10px; font-size: 11px;">📋 Copy</button>
-          </div>
-        `;
-
-        // 1-Click Insert straight into LinkedIn Comment Box on active tab
-        card.querySelector('.insert-c-btn').addEventListener('click', async () => {
-          if (typeof chrome !== 'undefined' && chrome.tabs) {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab?.id) {
-              chrome.tabs.sendMessage(tab.id, {
-                type: 'INSERT_COMMENT_TO_PAGE',
-                commentText: item.comment,
-                autoLike: currentSettings.autoLike
-              });
-              showToast('✍️ Comment inserted straight into LinkedIn!', '🚀');
-            }
-          }
-        });
-
-        card.querySelector('.copy-c-btn').addEventListener('click', () => {
-          navigator.clipboard.writeText(item.comment);
-          showToast('📋 Comment copied to clipboard!');
-        });
-
-        commentsList.appendChild(card);
-      });
-
-      commentResultsContainer.style.display = 'block';
-      commentResultsContainer.scrollIntoView({ behavior: 'smooth' });
-      showToast('3 DE Comments ready! Click "Insert" to post.');
+      renderCommentCards(suggestions);
+      showToast('3 DE Comments ready!');
     } catch (err) {
       commentsList.innerHTML = `<div style="padding: 12px; color: var(--error-color);">⚠️ Error: ${err.message}</div>`;
     } finally {
       generateCommentsBtn.disabled = false;
       generateCommentsBtn.innerHTML = '<span>✨</span> Generate 3 DE Comments';
     }
+  }
+
+  function renderCommentCards(suggestions) {
+    commentsList.innerHTML = '';
+    suggestions.forEach((item, index) => {
+      const card = document.createElement('div');
+      card.className = 'hook-item-card';
+      card.id = `comment-card-${index}`;
+      card.style.cursor = 'default';
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: var(--accent-cyan);">${item.emoji || '💡'} ${item.label || item.style}</strong>
+          <div class="refine-toolbar">
+            <button class="refine-btn btn-shorter" title="Condense to 1 punchy sentence">✂️ Shorter</button>
+            <button class="refine-btn btn-tech" title="Inject specific code/config details">⚡ Add Config</button>
+            <button class="refine-btn btn-regen" title="Regenerate this specific angle">🔄</button>
+          </div>
+        </div>
+        <div class="comment-text-body" style="font-size: 12.5px; line-height: 1.45; color: var(--text-primary); margin: 6px 0 10px 0;">${item.comment}</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="action-btn action-primary insert-c-btn" style="flex: 1; padding: 6px 12px; font-size: 11.5px; font-weight: 700;">✍️ Insert into Comment Box</button>
+          <button class="action-btn action-secondary copy-c-btn" style="padding: 6px 10px; font-size: 11px;">📋 Copy</button>
+        </div>
+      `;
+
+      const textBody = card.querySelector('.comment-text-body');
+
+      // 1-Click Insert
+      card.querySelector('.insert-c-btn').addEventListener('click', async () => {
+        const commentToInsert = textBody.textContent.trim();
+        if (typeof chrome !== 'undefined' && chrome.tabs) {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab?.id) {
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'INSERT_COMMENT_TO_PAGE',
+              commentText: commentToInsert,
+              autoLike: currentSettings.autoLike
+            });
+            await StorageManager.incrementActivity('comments');
+            updateDailyTracker();
+            showToast('✍️ Comment inserted into LinkedIn comment box!', '🚀');
+          }
+        }
+      });
+
+      card.querySelector('.copy-c-btn').addEventListener('click', () => {
+        navigator.clipboard.writeText(textBody.textContent.trim());
+        showToast('📋 Comment copied to clipboard!');
+      });
+
+      // Refinement Buttons
+      card.querySelector('.btn-shorter').addEventListener('click', async () => {
+        textBody.textContent = '⏳ Trimming to punchy sentence...';
+        try {
+          const refined = await GeminiClient.refineComment(item.comment, 'shorter', currentSettings.apiKey);
+          textBody.textContent = refined;
+          showToast('✂️ Condensed comment!');
+        } catch (e) {
+          textBody.textContent = item.comment;
+          alert(e.message);
+        }
+      });
+
+      card.querySelector('.btn-tech').addEventListener('click', async () => {
+        textBody.textContent = '⏳ Injecting concrete configs & metrics...';
+        try {
+          const refined = await GeminiClient.refineComment(item.comment, 'technical', currentSettings.apiKey);
+          textBody.textContent = refined;
+          showToast('⚡ Injected technical parameters!');
+        } catch (e) {
+          textBody.textContent = item.comment;
+          alert(e.message);
+        }
+      });
+
+      card.querySelector('.btn-regen').addEventListener('click', async () => {
+        textBody.textContent = '⏳ Regenerating fresh angle...';
+        try {
+          const refined = await GeminiClient.refineComment(item.comment, 'fresh', currentSettings.apiKey);
+          textBody.textContent = refined;
+          showToast('🔄 Fresh angle ready!');
+        } catch (e) {
+          textBody.textContent = item.comment;
+          alert(e.message);
+        }
+      });
+
+      commentsList.appendChild(card);
+    });
+
+    commentResultsContainer.style.display = 'block';
+    commentResultsContainer.scrollIntoView({ behavior: 'smooth' });
   }
 
   generateCommentsBtn.addEventListener('click', generateComments);
