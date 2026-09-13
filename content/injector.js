@@ -1,61 +1,106 @@
-// content/injector.js - Instant AI Reply Trigger for LinkedIn Comment Boxes
+/**
+ * LinkedIn DE Copilot - Content Injector & DOM Interactor
+ * Multi-post smart target tracking, viewport awareness, and DOM insertion
+ */
 
 (function () {
-  console.log('%c[LinkedIn DE Copilot]%c Interactive Comment Box Assistant Ready!', 'color: #00D2FF; font-weight: bold;', 'color: #fff;');
+  'use strict';
 
-  function showToast(message, icon = '✨') {
-    const existing = document.querySelector('.de-copilot-toast');
+  let activeTargetElement = null;
+  let activeEditorElement = null;
+  let activePostId = null;
+
+  // Helper: Toast Notification
+  function showToast(message, icon = '⚡') {
+    const existing = document.getElementById('de-copilot-toast');
     if (existing) existing.remove();
 
     const toast = document.createElement('div');
-    toast.className = 'de-copilot-toast';
+    toast.id = 'de-copilot-toast';
     toast.innerHTML = `<span style="font-size: 16px;">${icon}</span> <span>${message}</span>`;
     document.body.appendChild(toast);
 
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateX(-50%) translateY(20px)';
-      toast.style.transition = 'all 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
+      toast.classList.add('de-toast-hide');
+      setTimeout(() => toast.remove(), 400);
     }, 3200);
   }
 
-  // Deep recursive extraction of Post + Sub-comment context
-  function extractContextFromElement(el) {
-    if (!el) return { author: 'Peer', text: '', isCommentReply: false };
+  // Get post container from any element inside it
+  function findPostCard(el) {
+    if (!el) return null;
+    return el.closest('div.feed-shared-update-v2, article, [data-urn*="activity:"], .artdeco-card, .feed-shared-update-v2__comments-container') || el;
+  }
 
-    // Check if clicked inside a specific comment thread
-    const commentItem = el.closest('.comments-comment-item, .comments-reply-item, article.comments-comment-item, .comments-comment-item-content-body');
-    let commentAuthor = '';
+  // Set an element as the current active target
+  function setActiveTarget(el) {
+    if (!el) return;
+    const postCard = findPostCard(el);
+    
+    // Clear previous highlights/targets
+    document.querySelectorAll('[data-de-active-target]').forEach(e => e.removeAttribute('data-de-active-target'));
+    
+    if (postCard) {
+      postCard.setAttribute('data-de-active-target', 'true');
+      activeTargetElement = postCard;
+      activePostId = postCard.getAttribute('data-urn') || postCard.getAttribute('data-id') || postCard.id;
+    } else {
+      el.setAttribute('data-de-active-target', 'true');
+      activeTargetElement = el;
+    }
+
+    // If el is an editor, remember it
+    if (el.matches && (el.matches('[contenteditable="true"]') || el.matches('.ql-editor'))) {
+      activeEditorElement = el;
+    } else if (postCard) {
+      activeEditorElement = postCard.querySelector('div.ql-editor[contenteditable="true"], [contenteditable="true"]');
+    }
+  }
+
+  // Find post closest to center of viewport
+  function getPostClosestToViewportCenter() {
+    const posts = Array.from(document.querySelectorAll('div.feed-shared-update-v2, article, [data-urn*="activity:"]'));
+    if (posts.length === 0) return null;
+
+    const centerY = window.innerHeight / 2;
+    let closestPost = null;
+    let minDistance = Infinity;
+
+    posts.forEach(post => {
+      const rect = post.getBoundingClientRect();
+      // Only consider posts that are visible on screen
+      if (rect.bottom > 0 && rect.top < window.innerHeight) {
+        const postCenterY = rect.top + (rect.height / 2);
+        const dist = Math.abs(centerY - postCenterY);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestPost = post;
+        }
+      }
+    });
+
+    return closestPost || posts[0];
+  }
+
+  // Context Extractor from Element or Post Card
+  function extractContextFromElement(element) {
+    const postEl = findPostCard(element) || document.body;
+
+    // Sub-comment reply context
+    const commentItem = element ? element.closest('.comments-comment-item, .comments-reply-item') : null;
     let commentText = '';
+    let commentAuthor = '';
 
     if (commentItem) {
-      const cAuthorEl = commentItem.querySelector('.comments-comment-meta__description-title, .comments-post-meta__name, a[href*="/in/"] span[aria-hidden="true"], .comments-comment-item__main-content a');
-      commentAuthor = cAuthorEl ? cAuthorEl.innerText.trim().split('\n')[0] : 'Peer';
-
-      const cTextEl = commentItem.querySelector('.comments-comment-item__main-content, .comments-comment-item-content-body, .feed-shared-inline-show-more-text, span.dir-ltr');
-      commentText = cTextEl ? cTextEl.innerText.trim() : '';
+      const cTextEl = commentItem.querySelector('.comments-comment-item__main-content, .update-components-text, .feed-shared-inline-show-more-text');
+      const cAuthorEl = commentItem.querySelector('.comments-post-meta__name-text, .comments-comment-meta__description-title');
+      if (cTextEl) commentText = cTextEl.innerText.trim();
+      if (cAuthorEl) commentAuthor = cAuthorEl.innerText.trim().split('\n')[0];
     }
 
-    // Find enclosing Main Post Card
-    let postEl = el.closest('article, [data-urn*="activity:"], .feed-shared-update-v2, div[data-id*="urn:li:activity"], .occludable-update, .artdeco-card');
-
-    if (!postEl) {
-      let curr = el.parentElement;
-      while (curr && curr !== document.body) {
-        if (curr.querySelector('.feed-shared-update-v2__description, .feed-shared-text, .update-components-text, .feed-shared-inline-show-more-text')) {
-          postEl = curr;
-          break;
-        }
-        curr = curr.parentElement;
-      }
-    }
-
-    if (!postEl) postEl = el;
-
-    // Post Author
+    // Author
     const authorEl = postEl.querySelector(
-      '.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title, .feed-shared-actor__title, a[href*="/in/"] span[aria-hidden="true"], .feed-shared-actor__name span, .feed-shared-actor__title'
+      '.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title, span[dir="ltr"] strong'
     );
     let postAuthor = authorEl ? authorEl.innerText.trim().split('\n')[0] : 'Data Engineering Author';
 
@@ -80,7 +125,7 @@
       }
     }
 
-    // Image alt
+    // Image / Infographic alt text
     const imgEl = postEl.querySelector('img.feed-shared-image__image, .update-components-image__image, img[alt]');
     const imgAlt = imgEl ? (imgEl.getAttribute('alt') || '') : '';
     if (imgAlt && imgAlt.length > 10 && !postText.includes(imgAlt)) {
@@ -89,23 +134,20 @@
 
     if (commentText && commentText.length > 5) {
       const fullContext = `Main Post by ${postAuthor}:\n"${postText.slice(0, 300)}..."\n\nReplying to comment by ${commentAuthor}:\n"${commentText}"`;
-      return { author: commentAuthor, text: fullContext, isCommentReply: true };
+      return { author: commentAuthor || postAuthor, text: fullContext, isCommentReply: true, postEl };
     }
 
     return {
       author: postAuthor,
       text: postText || 'Data Engineering, Distributed Systems, Cloud Architectures.',
-      isCommentReply: false
+      isCommentReply: false,
+      postEl
     };
   }
 
-  // Trigger Copilot from Click
+  // Trigger Copilot from Click on a specific post
   function triggerCopilotForPost(targetEl) {
-    document.querySelectorAll('[data-de-active-target]').forEach(e => e.removeAttribute('data-de-active-target'));
-    if (targetEl) {
-      targetEl.setAttribute('data-de-active-target', 'true');
-    }
-
+    setActiveTarget(targetEl);
     const { author, text, isCommentReply } = extractContextFromElement(targetEl);
 
     chrome.storage.local.set({
@@ -121,11 +163,11 @@
         postText: text,
         authorName: author
       });
-      showToast(`⚡ Opening Copilot to generate reply for ${author}...`, '🚀');
+      showToast(`⚡ Selected post by ${author} for AI Reply!`, '🚀');
     });
   }
 
-  // Create or attach the helper banner to a comment box
+  // Create or attach helper banner to a comment box
   function attachHelperToCommentBox(commentBox) {
     if (!commentBox) return;
     if (commentBox.querySelector('.de-copilot-comment-banner') || commentBox.parentElement?.querySelector('.de-copilot-comment-banner')) {
@@ -153,69 +195,147 @@
     }
   }
 
-  // Insert text into comment box
+  // Insert text into target comment box
   function insertCommentIntoActiveBox(commentText, autoLike) {
-    let targetContainer = document.querySelector('[data-de-active-target="true"]');
     let targetEditor = null;
+    let targetContainer = document.querySelector('[data-de-active-target="true"]') || activeTargetElement;
 
     if (targetContainer) {
       targetEditor = targetContainer.querySelector('div.ql-editor[contenteditable="true"], [contenteditable="true"]');
       if (!targetEditor && targetContainer.isContentEditable) targetEditor = targetContainer;
+
+      // If comment box is not open on this post, try clicking the Comment button
+      if (!targetEditor) {
+        const commentOpenBtn = targetContainer.querySelector('button[aria-label*="Comment"], button.comment-button, button[aria-label*="comment"]');
+        if (commentOpenBtn) {
+          commentOpenBtn.click();
+          setTimeout(() => {
+            const newlyOpenedEditor = targetContainer.querySelector('div.ql-editor[contenteditable="true"], [contenteditable="true"]');
+            if (newlyOpenedEditor) {
+              writeTextToEditor(newlyOpenedEditor, commentText, targetContainer, autoLike);
+            }
+          }, 300);
+          return;
+        }
+      }
     }
 
+    // Fallback: check if activeEditorElement is valid and connected
+    if (!targetEditor && activeEditorElement && document.body.contains(activeEditorElement)) {
+      targetEditor = activeEditorElement;
+    }
+
+    // Fallback: check post closest to viewport center
+    if (!targetEditor) {
+      const centerPost = getPostClosestToViewportCenter();
+      if (centerPost) {
+        targetContainer = centerPost;
+        targetEditor = centerPost.querySelector('div.ql-editor[contenteditable="true"], [contenteditable="true"]');
+      }
+    }
+
+    // Final fallback: any open comment box
     if (!targetEditor) {
       targetEditor = document.querySelector('div.ql-editor[contenteditable="true"], .comments-comment-box [contenteditable="true"], div[contenteditable="true"]');
     }
 
     if (targetEditor) {
-      targetEditor.focus();
-      const p = targetEditor.querySelector('p') || targetEditor;
-      p.textContent = commentText;
-
-      targetEditor.dispatchEvent(new Event('input', { bubbles: true }));
-      targetEditor.dispatchEvent(new Event('change', { bubbles: true }));
-      targetEditor.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: ' ' }));
-      targetEditor.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: ' ' }));
-
-      showToast('✍️ Comment inserted into LinkedIn comment box!', '✅');
+      writeTextToEditor(targetEditor, commentText, targetContainer, autoLike);
     } else {
-      showToast('Comment copied to clipboard! Paste with Ctrl+V', '📋');
+      navigator.clipboard.writeText(commentText);
+      showToast('Comment copied to clipboard! Click in the comment box and press Ctrl+V', '📋');
+    }
+  }
+
+  function writeTextToEditor(editor, commentText, postContainer, autoLike) {
+    editor.focus();
+    
+    // Check if Quill editor
+    const p = editor.querySelector('p');
+    if (p) {
+      p.textContent = commentText;
+    } else {
+      editor.textContent = commentText;
     }
 
-    if (autoLike && targetContainer) {
-      const postCard = targetContainer.closest('article, [data-urn*="activity:"], .feed-shared-update-v2, .artdeco-card') || targetContainer;
-      const likeBtn = postCard.querySelector('button[aria-label*="React Like"], button[aria-label*="Like"], .react-button__trigger');
-      if (likeBtn && !likeBtn.classList.contains('react-button--active') && likeBtn.getAttribute('aria-pressed') !== 'true') {
-        likeBtn.click();
+    // Trigger input events for LinkedIn's reactive framework
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
+    editor.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: ' ' }));
+    editor.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: ' ' }));
+
+    // Flash highlight on the editor so user clearly sees where it was inserted
+    editor.style.outline = '2px solid #00D4FF';
+    editor.style.boxShadow = '0 0 14px rgba(0, 212, 255, 0.6)';
+    editor.style.transition = 'all 0.3s ease';
+    
+    setTimeout(() => {
+      editor.style.outline = '';
+      editor.style.boxShadow = '';
+    }, 2000);
+
+    // Scroll smoothly to the editor
+    editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast('✍️ Comment inserted into this post!', '✅');
+
+    // Auto-like if enabled
+    if (autoLike && postContainer) {
+      const postCard = findPostCard(postContainer);
+      if (postCard) {
+        const likeBtn = postCard.querySelector('button[aria-label*="React Like"], button[aria-label*="Like"], .react-button__trigger');
+        if (likeBtn && !likeBtn.classList.contains('react-button--active') && likeBtn.getAttribute('aria-pressed') !== 'true') {
+          likeBtn.click();
+        }
       }
     }
   }
 
+  // Listen for messages from Side Panel
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'INSERT_COMMENT_TO_PAGE') {
       insertCommentIntoActiveBox(request.commentText, request.autoLike);
       sendResponse({ success: true });
+    } else if (request.type === 'GRAB_ACTIVE_POST_CONTEXT') {
+      // Pick active target or post closest to center of screen
+      const target = activeTargetElement || getPostClosestToViewportCenter();
+      if (target) {
+        setActiveTarget(target);
+        const context = extractContextFromElement(target);
+        sendResponse({ success: true, text: context.text, author: context.author });
+      } else {
+        sendResponse({ success: false, error: 'No post found in view' });
+      }
     }
+    return true;
   });
 
-  // Focus and Click listener on any comment input box
+  // Track active target whenever user clicks or focuses ANY element in LinkedIn feed
   document.addEventListener('focusin', (e) => {
     const target = e.target;
     if (target && (target.matches('[contenteditable="true"], .ql-editor, [data-placeholder*="comment"]') || target.closest('.comments-comment-box'))) {
       const box = target.closest('.comments-comment-box') || target.parentElement;
+      setActiveTarget(target);
       attachHelperToCommentBox(box);
     }
-  });
+  }, true);
 
   document.addEventListener('click', (e) => {
     const target = e.target;
-    if (target && target.closest('.comments-comment-box, .comments-comment-texteditor, form.comments-comment-box__form')) {
+    if (!target) return;
+
+    // If clicking on any post or comment box, update active target
+    const postCard = target.closest('div.feed-shared-update-v2, article, [data-urn*="activity:"], .comments-comment-box');
+    if (postCard) {
+      setActiveTarget(postCard);
+    }
+
+    if (target.closest('.comments-comment-box, .comments-comment-texteditor, form.comments-comment-box__form')) {
       const box = target.closest('.comments-comment-box') || target.parentElement;
       attachHelperToCommentBox(box);
     }
-  });
+  }, true);
 
-  // Continuous Scan
+  // Continuous Scan for adding UI helper buttons
   function scanAndInject() {
     // 1. Comment boxes
     const commentBoxes = document.querySelectorAll(

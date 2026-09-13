@@ -370,22 +370,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab?.id) {
         try {
-          const [{ result }] = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: () => {
-              const textEl = document.querySelector(
-                '.feed-shared-update-v2__description, .feed-shared-text, .update-components-text, .feed-shared-inline-show-more-text, .feed-shared-update-v2__commentary'
-              );
-              return textEl ? textEl.innerText.trim() : window.getSelection().toString();
+          chrome.tabs.sendMessage(tab.id, { type: 'GRAB_ACTIVE_POST_CONTEXT' }, async (response) => {
+            if (response && response.success && response.text) {
+              commentPostInput.value = response.text;
+              showToast(`📥 Grabbed post by ${response.author || 'Author'}!`);
+              await generateComments();
+            } else {
+              // Fallback to active selection or viewport text
+              try {
+                const [{ result }] = await chrome.scripting.executeScript({
+                  target: { tabId: tab.id },
+                  func: () => window.getSelection().toString().trim()
+                });
+                if (result) {
+                  commentPostInput.value = result;
+                  showToast('📥 Grabbed selected text!');
+                  await generateComments();
+                } else {
+                  showToast('Please scroll to or click the post on LinkedIn first.');
+                }
+              } catch (err) {
+                showToast('Please click on the post on LinkedIn first.');
+              }
             }
           });
-          if (result) {
-            commentPostInput.value = result;
-            showToast('📥 Grabbed post text from page!');
-            generateComments();
-          } else {
-            showToast('No post text found on page. Please select or paste text.');
-          }
         } catch (e) {
           showToast('Could not grab post: ' + e.message);
         }
