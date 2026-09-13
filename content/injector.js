@@ -1,7 +1,7 @@
-// content/injector.js - Deep Contextual Post & Comment Extractor
+// content/injector.js - Instant AI Reply Trigger for LinkedIn Comment Boxes
 
 (function () {
-  console.log('%c[LinkedIn DE Copilot]%c Context-Aware Post & Comment Extractor Active!', 'color: #00D2FF; font-weight: bold;', 'color: #fff;');
+  console.log('%c[LinkedIn DE Copilot]%c Interactive Comment Box Assistant Ready!', 'color: #00D2FF; font-weight: bold;', 'color: #fff;');
 
   function showToast(message, icon = '✨') {
     const existing = document.querySelector('.de-copilot-toast');
@@ -24,7 +24,7 @@
   function extractContextFromElement(el) {
     if (!el) return { author: 'Peer', text: '', isCommentReply: false };
 
-    // 1. Check if clicked inside a specific comment (Reply thread)
+    // Check if clicked inside a specific comment thread
     const commentItem = el.closest('.comments-comment-item, .comments-reply-item, article.comments-comment-item, .comments-comment-item-content-body');
     let commentAuthor = '';
     let commentText = '';
@@ -37,7 +37,7 @@
       commentText = cTextEl ? cTextEl.innerText.trim() : '';
     }
 
-    // 2. Find enclosing Main Post Card
+    // Find enclosing Main Post Card
     let postEl = el.closest('article, [data-urn*="activity:"], .feed-shared-update-v2, div[data-id*="urn:li:activity"], .occludable-update, .artdeco-card');
 
     if (!postEl) {
@@ -53,13 +53,13 @@
 
     if (!postEl) postEl = el;
 
-    // Extract Post Author
+    // Post Author
     const authorEl = postEl.querySelector(
       '.update-components-actor__name, .feed-shared-actor__name, .update-components-actor__title, .feed-shared-actor__title, a[href*="/in/"] span[aria-hidden="true"], .feed-shared-actor__name span, .feed-shared-actor__title'
     );
     let postAuthor = authorEl ? authorEl.innerText.trim().split('\n')[0] : 'Data Engineering Author';
 
-    // Extract Post Text
+    // Post Text
     let postText = '';
     const textSelectors = [
       '.feed-shared-update-v2__description',
@@ -80,26 +80,21 @@
       }
     }
 
-    // If text commentary is short/absent, check image alt description (e.g. system design infographics)
+    // Image alt
     const imgEl = postEl.querySelector('img.feed-shared-image__image, .update-components-image__image, img[alt]');
     const imgAlt = imgEl ? (imgEl.getAttribute('alt') || '') : '';
     if (imgAlt && imgAlt.length > 10 && !postText.includes(imgAlt)) {
-      postText = postText ? `${postText}\n[Infographic topic: ${imgAlt}]` : `[Infographic topic: ${imgAlt}]`;
+      postText = postText ? `${postText}\n[Infographic: ${imgAlt}]` : `[Infographic: ${imgAlt}]`;
     }
 
-    // If replying to a specific comment, format combined context
     if (commentText && commentText.length > 5) {
-      const fullContext = `Main Post by ${postAuthor}:\n"${postText.slice(0, 300)}..."\n\nReplying to specific comment by ${commentAuthor}:\n"${commentText}"`;
-      return {
-        author: commentAuthor,
-        text: fullContext,
-        isCommentReply: true
-      };
+      const fullContext = `Main Post by ${postAuthor}:\n"${postText.slice(0, 300)}..."\n\nReplying to comment by ${commentAuthor}:\n"${commentText}"`;
+      return { author: commentAuthor, text: fullContext, isCommentReply: true };
     }
 
     return {
       author: postAuthor,
-      text: postText || 'System Design, Data Engineering, and Distributed Cloud Architectures.',
+      text: postText || 'Data Engineering, Distributed Systems, Cloud Architectures.',
       isCommentReply: false
     };
   }
@@ -126,8 +121,36 @@
         postText: text,
         authorName: author
       });
-      showToast(`⚡ Analyzing ${isCommentReply ? 'comment thread' : 'post'} by ${author}...`, '🚀');
+      showToast(`⚡ Opening Copilot to generate reply for ${author}...`, '🚀');
     });
+  }
+
+  // Create or attach the helper banner to a comment box
+  function attachHelperToCommentBox(commentBox) {
+    if (!commentBox) return;
+    if (commentBox.querySelector('.de-copilot-comment-banner') || commentBox.parentElement?.querySelector('.de-copilot-comment-banner')) {
+      return;
+    }
+
+    const banner = document.createElement('div');
+    banner.className = 'de-copilot-comment-banner';
+    banner.innerHTML = `
+      <button type="button" class="de-copilot-banner-btn">
+        <span class="de-sparkle-icon">✨</span>
+        <span class="de-btn-main-text">Generate AI Reply for this post</span>
+        <span class="de-badge-tag">DE Copilot ⚡</span>
+      </button>
+    `;
+
+    banner.querySelector('button').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerCopilotForPost(commentBox);
+    });
+
+    if (commentBox.parentNode) {
+      commentBox.parentNode.insertBefore(banner, commentBox);
+    }
   }
 
   // Insert text into comment box
@@ -175,50 +198,41 @@
     }
   });
 
-  // Inject the button above main comment box & comment replies
+  // Focus and Click listener on any comment input box
+  document.addEventListener('focusin', (e) => {
+    const target = e.target;
+    if (target && (target.matches('[contenteditable="true"], .ql-editor, [data-placeholder*="comment"]') || target.closest('.comments-comment-box'))) {
+      const box = target.closest('.comments-comment-box') || target.parentElement;
+      attachHelperToCommentBox(box);
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    if (target && target.closest('.comments-comment-box, .comments-comment-texteditor, form.comments-comment-box__form')) {
+      const box = target.closest('.comments-comment-box') || target.parentElement;
+      attachHelperToCommentBox(box);
+    }
+  });
+
+  // Continuous Scan
   function scanAndInject() {
-    // 1. Main post comment boxes
-    const commentContainers = document.querySelectorAll(
+    // 1. Comment boxes
+    const commentBoxes = document.querySelectorAll(
       '.comments-comment-box, .comments-comment-texteditor, .comments-comment-box__input-container, form.comments-comment-box__form, .feed-shared-update-v2__comments-container'
     );
+    commentBoxes.forEach(attachHelperToCommentBox);
 
-    commentContainers.forEach((box) => {
-      if (box.querySelector('.de-copilot-comment-btn') || box.parentElement?.querySelector('.de-copilot-comment-btn')) return;
-
-      const btnContainer = document.createElement('div');
-      btnContainer.className = 'de-copilot-comment-btn';
-
-      const replyBtn = document.createElement('button');
-      replyBtn.type = 'button';
-      replyBtn.className = 'de-copilot-pill-btn';
-      replyBtn.innerHTML = `
-        <span class="de-sparkle">⚡</span>
-        <span>AI DE Reply</span>
-      `;
-
-      replyBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        triggerCopilotForPost(box);
-      });
-
-      btnContainer.appendChild(replyBtn);
-
-      if (box.parentNode) {
-        box.parentNode.insertBefore(btnContainer, box);
-      }
-    });
-
-    // 2. Individual comment reply buttons
+    // 2. Individual comment reply links
     const commentItems = document.querySelectorAll('.comments-comment-item, .comments-reply-item');
     commentItems.forEach((cItem) => {
-      if (cItem.querySelector('.de-copilot-comment-thread-btn')) return;
+      if (cItem.querySelector('.de-copilot-thread-reply-btn')) return;
 
       const actionsRow = cItem.querySelector('.comments-comment-social-bar, .comments-comment-actions, .comments-comment-item__actions');
       if (actionsRow) {
         const threadBtn = document.createElement('button');
         threadBtn.type = 'button';
-        threadBtn.className = 'de-copilot-comment-thread-btn';
+        threadBtn.className = 'de-copilot-thread-reply-btn';
         threadBtn.innerHTML = `⚡ AI Reply`;
 
         threadBtn.addEventListener('click', (e) => {
@@ -231,17 +245,16 @@
       }
     });
 
-    // 3. Post action bars (beside Like/Comment)
+    // 3. Post action bars
     const actionBars = document.querySelectorAll(
       '.feed-shared-social-actions, .social-details-social-actions, .feed-shared-social-action-bar'
     );
-
     actionBars.forEach((bar) => {
-      if (bar.querySelector('.de-copilot-bar-btn')) return;
+      if (bar.querySelector('.de-copilot-action-bar-btn')) return;
 
       const barBtn = document.createElement('button');
       barBtn.type = 'button';
-      barBtn.className = 'de-copilot-bar-btn';
+      barBtn.className = 'de-copilot-action-bar-btn';
       barBtn.innerHTML = `<span>⚡</span> <span>AI Reply</span>`;
 
       barBtn.addEventListener('click', (e) => {
@@ -254,7 +267,7 @@
     });
   }
 
-  setInterval(scanAndInject, 1200);
+  setInterval(scanAndInject, 1000);
   scanAndInject();
 
   const observer = new MutationObserver(scanAndInject);
