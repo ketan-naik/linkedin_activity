@@ -1,4 +1,4 @@
-/* content/injector.css - Styling for comment box AI button */
+/* content/injector.css - Enhanced styling */
 
 .de-copilot-comment-btn {
   display: flex !important;
@@ -55,7 +55,26 @@
   border-color: #0A66C2 !important;
 }
 
-/* Toast */
+.de-copilot-comment-thread-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  background: transparent !important;
+  color: #0A66C2 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  border: none !important;
+  cursor: pointer !important;
+  margin-left: 6px !important;
+}
+
+.de-copilot-comment-thread-btn:hover {
+  background: rgba(10, 102, 194, 0.1) !important;
+  text-decoration: underline !important;
+}
+
 .de-copilot-toast {
   position: fixed !important;
   bottom: 24px !important;
