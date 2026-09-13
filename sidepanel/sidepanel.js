@@ -144,12 +144,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activeContent) activeContent.classList.add('active');
   }
 
+  // Check if there is a pending reply from in-page click
+  async function checkPendingReply() {
+    chrome.storage.local.get(['pending_post_reply'], (res) => {
+      if (res.pending_post_reply && res.pending_post_reply.postText) {
+        const { postText } = res.pending_post_reply;
+        commentPostInput.value = postText;
+        switchTab('tab-comment-copilot');
+        // Clear pending so it doesn't loop
+        chrome.storage.local.remove(['pending_post_reply']);
+        // Automatically generate comments
+        generateComments();
+      }
+    });
+  }
+
+  // Listen for trigger message while sidepanel is open
+  chrome.runtime.onMessage.addListener((request) => {
+    if (request.type === 'TRIGGER_COPILOT_REPLY') {
+      commentPostInput.value = request.postText || '';
+      switchTab('tab-comment-copilot');
+      generateComments();
+    }
+  });
+
   // Init UI
   geminiApiKeyInput.value = currentSettings.apiKey || '';
   customBioInput.value = currentSettings.customBio || '';
   settingAutoLike.checked = currentSettings.autoLike || false;
   updateApiStatus();
   updateDraftsList();
+  checkPendingReply();
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -280,7 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Copied post & opening LinkedIn...');
   });
 
-  // TAB 2: COMMENT COPILOT IN SIDEPANEL
+  // TAB 2: COMMENT COPILOT
   grabPostBtn.addEventListener('click', async () => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -298,6 +323,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (result) {
             commentPostInput.value = result;
             showToast('📥 Grabbed post text from page!');
+            generateComments();
           } else {
             showToast('No post text found on page. Please select or paste text.');
           }
@@ -316,7 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  generateCommentsBtn.addEventListener('click', async () => {
+  async function generateComments() {
     const postText = commentPostInput.value.trim();
     if (!postText) {
       showToast('Please paste or grab a post text first.');
@@ -330,7 +356,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     generateCommentsBtn.disabled = true;
-    generateCommentsBtn.innerHTML = '<span>⏳</span> Generating DE Comments...';
+    generateCommentsBtn.innerHTML = '<span>⏳</span> Crafting 3 DE Comments...';
+    commentResultsContainer.style.display = 'block';
+    commentsList.innerHTML = '<div class="empty-state">⚡ Analyzing post and generating Data Engineering comments...</div>';
 
     try {
       const suggestions = await GeminiClient.generateCommentSuggestions(
@@ -349,53 +377,31 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <strong style="color: var(--accent-cyan);">${item.emoji || '💡'} ${item.label || item.style}</strong>
           </div>
-          <div style="font-size: 12.5px; line-height: 1.45; color: var(--text-primary); margin-bottom: 8px;">${item.comment}</div>
-          <div style="display: flex; gap: 6px;">
-            <button class="action-btn action-primary copy-c-btn" style="padding: 4px 10px; font-size: 11px;">📋 Copy Comment</button>
-            <button class="action-btn action-accent insert-c-btn" style="padding: 4px 10px; font-size: 11px;">✍️ Insert into LinkedIn</button>
+          <div style="font-size: 12.5px; line-height: 1.45; color: var(--text-primary); margin-bottom: 10px;">${item.comment}</div>
+          <div style="display: flex; gap: 8px;">
+            <button class="action-btn action-primary insert-c-btn" style="flex: 1; padding: 6px 12px; font-size: 11.5px; font-weight: 700;">✍️ Insert into Comment Box</button>
+            <button class="action-btn action-secondary copy-c-btn" style="padding: 6px 10px; font-size: 11px;">📋 Copy</button>
           </div>
         `;
+
+        // 1-Click Insert straight into LinkedIn Comment Box on active tab
+        card.querySelector('.insert-c-btn').addEventListener('click', async () => {
+          if (typeof chrome !== 'undefined' && chrome.tabs) {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab?.id) {
+              chrome.tabs.sendMessage(tab.id, {
+                type: 'INSERT_COMMENT_TO_PAGE',
+                commentText: item.comment,
+                autoLike: currentSettings.autoLike
+              });
+              showToast('✍️ Comment inserted straight into LinkedIn!', '🚀');
+            }
+          }
+        });
 
         card.querySelector('.copy-c-btn').addEventListener('click', () => {
           navigator.clipboard.writeText(item.comment);
           showToast('📋 Comment copied to clipboard!');
-        });
-
-        card.querySelector('.insert-c-btn').addEventListener('click', async () => {
-          navigator.clipboard.writeText(item.comment);
-          if (typeof chrome !== 'undefined' && chrome.tabs) {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab?.id) {
-              await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                args: [item.comment, currentSettings.autoLike],
-                func: (commentText, shouldLike) => {
-                  let editor = document.querySelector(
-                    'div.ql-editor[contenteditable="true"], .comments-comment-box [contenteditable="true"], div[contenteditable="true"]'
-                  );
-                  if (!editor) {
-                    const commentBtn = document.querySelector('button[aria-label*="Comment"], .comment-button');
-                    if (commentBtn) commentBtn.click();
-                    editor = document.querySelector('div[contenteditable="true"], .comments-comment-box [contenteditable="true"]');
-                  }
-                  if (editor) {
-                    editor.focus();
-                    const p = editor.querySelector('p') || editor;
-                    p.textContent = commentText;
-                    editor.dispatchEvent(new Event('input', { bubbles: true }));
-                    editor.dispatchEvent(new Event('change', { bubbles: true }));
-                  }
-                  if (shouldLike) {
-                    const likeBtn = document.querySelector('button[aria-label*="Like"], .react-button__trigger');
-                    if (likeBtn && !likeBtn.classList.contains('react-button--active')) {
-                      likeBtn.click();
-                    }
-                  }
-                }
-              });
-              showToast('✍️ Comment inserted into LinkedIn page!');
-            }
-          }
         });
 
         commentsList.appendChild(card);
@@ -403,16 +409,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       commentResultsContainer.style.display = 'block';
       commentResultsContainer.scrollIntoView({ behavior: 'smooth' });
-      showToast('3 DE Comments ready!');
+      showToast('3 DE Comments ready! Click "Insert" to post.');
     } catch (err) {
-      alert(`Comment generation error: ${err.message}`);
+      commentsList.innerHTML = `<div style="padding: 12px; color: var(--error-color);">⚠️ Error: ${err.message}</div>`;
     } finally {
       generateCommentsBtn.disabled = false;
       generateCommentsBtn.innerHTML = '<span>✨</span> Generate 3 DE Comments';
     }
-  });
+  }
 
-  // TAB 3: Viral Hooks
+  generateCommentsBtn.addEventListener('click', generateComments);
+
+  // TAB 3: Hooks
   generateHooksBtn.addEventListener('click', async () => {
     const topic = hookTopicInput.value.trim() || selectedTopic;
     if (!topic) {

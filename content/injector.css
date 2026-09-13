@@ -1,289 +1,61 @@
-/* content/injector.css - Enhanced styling for LinkedIn in-feed DE Copilot */
+/* content/injector.css - Styling for comment box AI button */
 
-/* Action Bar Button (Beside Like / Comment) */
-.de-copilot-action-bar-btn-wrapper {
-  position: relative;
-  display: inline-flex !important;
-  align-items: center !important;
-  z-index: 99;
+.de-copilot-comment-btn {
+  display: flex !important;
+  margin: 6px 0 4px 0 !important;
+  z-index: 100 !important;
 }
 
-.de-copilot-action-bar-btn {
+.de-copilot-pill-btn {
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
   background: linear-gradient(135deg, #0A66C2 0%, #004182 100%) !important;
   color: #FFFFFF !important;
-  font-size: 12.5px !important;
+  font-size: 12px !important;
   font-weight: 700 !important;
-  padding: 6px 14px !important;
-  border-radius: 20px !important;
+  padding: 5px 12px !important;
+  border-radius: 16px !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
-  user-select: none !important;
-  margin: 4px 6px !important;
   box-shadow: 0 2px 6px rgba(10, 102, 194, 0.35) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
-.de-copilot-action-bar-btn:hover {
+.de-copilot-pill-btn:hover {
   background: linear-gradient(135deg, #0077E6 0%, #0A66C2 100%) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 12px rgba(10, 102, 194, 0.5) !important;
 }
 
-.de-sparkle-icon {
+.de-sparkle {
   font-size: 13px;
   color: #FFD700;
 }
 
-/* Comment Inline Button */
-.de-copilot-comment-inline-btn {
-  position: relative !important;
-  display: flex !important;
-  margin: 8px 0 !important;
-  z-index: 100 !important;
-}
-
-.de-copilot-trigger-btn {
+.de-copilot-bar-btn {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  background: linear-gradient(135deg, #0A66C2 0%, #004182 100%) !important;
-  color: #FFFFFF !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  padding: 6px 14px !important;
-  border-radius: 18px !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 2px 8px rgba(10, 102, 194, 0.4) !important;
-  user-select: none !important;
-}
-
-.de-copilot-trigger-btn:hover {
-  background: linear-gradient(135deg, #0077E6 0%, #0A66C2 100%) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 14px rgba(10, 102, 194, 0.55) !important;
-}
-
-.de-sparkle {
-  font-size: 13px;
-  animation: de-pulse 2s infinite ease-in-out;
-}
-
-@keyframes de-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50% { transform: scale(1.15); opacity: 1; }
-}
-
-/* Inline Popover Dialog */
-.de-copilot-popover {
-  position: absolute !important;
-  top: calc(100% + 8px) !important;
-  left: 0 !important;
-  width: 400px !important;
-  max-width: 90vw !important;
-  background: #141B22 !important;
-  color: #E1E9EE !important;
-  border-radius: 12px !important;
-  border: 1px solid #2B3A48 !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 210, 255, 0.25) !important;
-  padding: 14px !important;
-  z-index: 9999999 !important;
-  font-size: 13px !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
-  backdrop-filter: blur(16px) !important;
-  animation: de-popover-in 0.2s ease-out !important;
-}
-
-@keyframes de-popover-in {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.de-copilot-popover-header {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  border-bottom: 1px solid #24323F !important;
-  padding-bottom: 8px !important;
-  margin-bottom: 10px !important;
-}
-
-.de-copilot-popover-title {
-  font-weight: 700 !important;
-  font-size: 12px !important;
-  letter-spacing: 0.5px !important;
-  text-transform: uppercase !important;
-  color: #00D2FF !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-}
-
-.de-copilot-close-btn {
-  background: transparent !important;
-  border: none !important;
-  color: #8C9CAB !important;
-  cursor: pointer !important;
-  font-size: 16px !important;
-  padding: 2px 6px !important;
-  border-radius: 4px !important;
-}
-
-.de-copilot-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #FFFFFF !important;
-}
-
-/* Style Pill Selector */
-.de-copilot-persona-pills {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 6px !important;
-  margin-bottom: 10px !important;
-}
-
-.de-copilot-pill {
-  background: #1C2733 !important;
-  border: 1px solid #2B3A48 !important;
-  color: #D1DCE5 !important;
-  padding: 6px 8px !important;
-  border-radius: 8px !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  cursor: pointer !important;
-  text-align: left !important;
-  transition: all 0.15s ease !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.de-copilot-pill:hover {
-  background: #273746 !important;
-  border-color: #00D2FF !important;
-  color: #FFFFFF !important;
-}
-
-.de-copilot-pill.active {
-  background: #0A66C2 !important;
-  border-color: #00D2FF !important;
-  color: #FFFFFF !important;
-}
-
-/* Results & Suggestions list */
-.de-copilot-suggestions {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  max-height: 250px !important;
-  overflow-y: auto !important;
-  margin-bottom: 10px !important;
-  padding-right: 4px !important;
-}
-
-.de-copilot-suggestions::-webkit-scrollbar {
-  width: 4px;
-}
-.de-copilot-suggestions::-webkit-scrollbar-thumb {
-  background: #2B3A48;
-  border-radius: 4px;
-}
-
-.de-copilot-suggestion-card {
-  background: #1B242F !important;
-  border: 1px solid #283645 !important;
-  border-radius: 8px !important;
-  padding: 10px !important;
-  cursor: pointer !important;
-  transition: all 0.15s ease !important;
-  position: relative !important;
-}
-
-.de-copilot-suggestion-card:hover {
-  background: #222F3D !important;
-  border-color: #0A66C2 !important;
-  box-shadow: 0 2px 8px rgba(10, 102, 194, 0.25) !important;
-}
-
-.de-copilot-card-header {
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  font-size: 11px !important;
-  color: #00D2FF !important;
-  font-weight: 600 !important;
-  margin-bottom: 4px !important;
-}
-
-.de-copilot-card-text {
-  font-size: 12px !important;
-  line-height: 1.45 !important;
-  color: #E1E9EE !important;
-}
-
-.de-copilot-insert-hint {
-  font-size: 10.5px !important;
-  color: #8C9CAB !important;
-  margin-top: 6px !important;
-  display: flex !important;
-  align-items: center !important;
   gap: 4px !important;
-}
-
-/* Loading state */
-.de-copilot-loading {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 24px 0 !important;
-  color: #8C9CAB !important;
+  background: rgba(10, 102, 194, 0.1) !important;
+  color: #0A66C2 !important;
   font-size: 12px !important;
-  gap: 8px !important;
-}
-
-.de-copilot-spinner {
-  width: 24px !important;
-  height: 24px !important;
-  border: 2px solid rgba(0, 210, 255, 0.2) !important;
-  border-top-color: #00D2FF !important;
-  border-radius: 50% !important;
-  animation: de-spin 0.8s linear infinite !important;
-}
-
-@keyframes de-spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Footer / Auto-like toggle */
-.de-copilot-popover-footer {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  border-top: 1px solid #24323F !important;
-  padding-top: 8px !important;
-  font-size: 11px !important;
-  color: #8C9CAB !important;
-}
-
-.de-copilot-checkbox-label {
-  display: flex !important;
-  align-items: center !important;
-  gap: 5px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(10, 102, 194, 0.3) !important;
   cursor: pointer !important;
-  user-select: none !important;
+  margin: 0 4px !important;
+  transition: all 0.15s ease !important;
 }
 
-.de-copilot-checkbox-label input {
-  accent-color: #0A66C2 !important;
-  cursor: pointer !important;
+.de-copilot-bar-btn:hover {
+  background: rgba(10, 102, 194, 0.2) !important;
+  border-color: #0A66C2 !important;
 }
 
-/* Floating Toast Notification */
+/* Toast */
 .de-copilot-toast {
   position: fixed !important;
   bottom: 24px !important;
