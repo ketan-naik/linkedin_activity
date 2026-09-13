@@ -1,25 +1,112 @@
-// utils/gemini.js - Google Gemini 1.5 Flash API connector (100% Free Tier)
+// utils/gemini.js - Google Gemini API connector with dynamic model discovery and multi-version fallbacks
 
 class GeminiClient {
-  static BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-  static PRIMARY_MODEL = 'gemini-1.5-flash';
-  static FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-pro'];
+  static cachedActiveModel = null;
+  static cachedApiVersion = 'v1beta';
+
+  static CANDIDATE_MODELS = [
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash-002',
+    'gemini-1.5-flash-001',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-2.0-flash',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro',
+    'gemini-pro'
+  ];
+
+  static API_VERSIONS = ['v1beta', 'v1'];
 
   /**
-   * Test API key validity
+   * Discover the best working model for this specific API key
+   */
+  static async discoverModel(apiKey) {
+    if (this.cachedActiveModel) {
+      return { model: this.cachedActiveModel, version: this.cachedApiVersion };
+    }
+
+    const cleanKey = apiKey.trim();
+
+    // 1. Try listing available models via ModelService
+    for (const version of this.API_VERSIONS) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/${version}/models?key=${cleanKey}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.models && Array.isArray(data.models)) {
+            const supported = data.models
+              .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+              .map(m => m.name.replace(/^models\//, ''));
+
+            if (supported.length > 0) {
+              const preferred = supported.find(m => m.includes('1.5-flash') || m.includes('2.0-flash')) ||
+                                supported.find(m => m.includes('flash')) ||
+                                supported.find(m => m.includes('pro')) ||
+                                supported[0];
+
+              this.cachedActiveModel = preferred;
+              this.cachedApiVersion = version;
+              console.log(`[GeminiClient] Discovered model: ${preferred} (${version})`);
+              return { model: preferred, version };
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`[GeminiClient] Could not list models on ${version}:`, e);
+      }
+    }
+
+    // 2. Direct probe of candidate models
+    for (const version of this.API_VERSIONS) {
+      for (const model of this.CANDIDATE_MODELS) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${cleanKey}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'ping' }] }],
+              generationConfig: { maxOutputTokens: 5 }
+            })
+          });
+
+          if (res.ok) {
+            this.cachedActiveModel = model;
+            this.cachedApiVersion = version;
+            console.log(`[GeminiClient] Verified active model: ${model} (${version})`);
+            return { model, version };
+          }
+        } catch (e) {
+          // continue probe
+        }
+      }
+    }
+
+    return { model: 'gemini-1.5-flash-latest', version: 'v1beta' };
+  }
+
+  /**
+   * Validate API key and detect working model
    */
   static async validateApiKey(apiKey) {
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
       return { valid: false, error: 'Please enter a valid Google Gemini API key.' };
     }
 
+    const cleanKey = apiKey.trim();
+
     try {
-      const url = `${this.BASE_URL}/${this.PRIMARY_MODEL}:generateContent?key=${apiKey.trim()}`;
+      this.cachedActiveModel = null;
+      const { model, version } = await this.discoverModel(cleanKey);
+
+      const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${cleanKey}`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Hello, respond with OK if you read this.' }] }],
+          contents: [{ parts: [{ text: 'Hello, respond with OK.' }] }],
           generationConfig: { maxOutputTokens: 10 }
         })
       });
@@ -30,32 +117,44 @@ class GeminiClient {
         return { valid: false, error: message };
       }
 
-      return { valid: true };
+      return { valid: true, model, version };
     } catch (err) {
       return { valid: false, error: `Connection failed: ${err.message}` };
     }
   }
 
   /**
-   * Core text generation with fallback models
+   * Core text generation with automatic fallback
    */
   static async generate(prompt, apiKey, options = {}) {
     if (!apiKey) {
       throw new Error('Gemini API key is missing. Please set your free API key in the extension Settings tab.');
     }
 
-    const modelsToTry = [this.PRIMARY_MODEL, ...this.FALLBACK_MODELS];
+    const cleanKey = apiKey.trim();
+    const { model, version } = await this.discoverModel(cleanKey);
+
+    const modelsToAttempt = [
+      { model, version },
+      { model: 'gemini-1.5-flash-latest', version: 'v1beta' },
+      { model: 'gemini-1.5-flash-002', version: 'v1beta' },
+      { model: 'gemini-1.5-flash-001', version: 'v1beta' },
+      { model: 'gemini-1.5-flash', version: 'v1beta' },
+      { model: 'gemini-2.0-flash-exp', version: 'v1beta' },
+      { model: 'gemini-pro', version: 'v1' }
+    ];
+
     let lastError = null;
 
-    for (const model of modelsToTry) {
+    for (const attempt of modelsToAttempt) {
       try {
-        const url = `${this.BASE_URL}/${model}:generateContent?key=${apiKey.trim()}`;
+        const url = `https://generativelanguage.googleapis.com/${attempt.version}/models/${attempt.model}:generateContent?key=${cleanKey}`;
         const body = {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: options.temperature ?? 0.7,
             topP: options.topP ?? 0.9,
-            maxOutputTokens: options.maxOutputTokens ?? 1200,
+            maxOutputTokens: options.maxOutputTokens ?? 1500,
           }
         };
 
@@ -69,21 +168,26 @@ class GeminiClient {
           const errorJson = await response.json().catch(() => ({}));
           const errorMsg = errorJson.error?.message || `HTTP ${response.status}`;
           lastError = new Error(errorMsg);
-          // If 404 model not found, try fallback model
-          if (response.status === 404) continue;
+          if (response.status === 404 || errorMsg.includes('not found')) {
+            continue;
+          }
           throw lastError;
         }
 
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) throw new Error('Empty response received from Gemini.');
+
+        this.cachedActiveModel = attempt.model;
+        this.cachedApiVersion = attempt.version;
+
         return text.trim();
       } catch (err) {
         lastError = err;
       }
     }
 
-    throw lastError || new Error('Failed to generate content with Gemini.');
+    throw lastError || new Error('Failed to generate content with Gemini. Please verify your API key in Google AI Studio.');
   }
 
   /**
@@ -122,7 +226,6 @@ Return ONLY raw JSON, with no markdown code fences.
       const cleanJson = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
       return JSON.parse(cleanJson);
     } catch (e) {
-      // Fallback parser if JSON fails
       return [
         {
           style: 'practical_experience',
@@ -145,7 +248,7 @@ Topic: "${topic}"
 Generate 3 high-converting, attention-grabbing LinkedIn hooks for this topic.
 Types of hooks:
 1. The Counter-Intuitive / Bold Statement (challenges common wisdom)
-2. The Metric / Incident Hook (e.g. "How a single shuffle killed our $50k cluster...")
+2. The Metric / Incident Hook (e.g. "How a single shuffle killed our cluster...")
 3. The Checklist / Framework Hook ("The 5 non-obvious rules for...")
 
 Format your output strictly as a JSON array of strings:
