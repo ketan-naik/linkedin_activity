@@ -1,10 +1,9 @@
-// utils/gemini.js - Google Gemini API connector with verified model probe and fallback
+// utils/gemini.js - Google Gemini API connector with delimiter-based clean comment parser
 
 class GeminiClient {
   static cachedActiveModel = null;
   static cachedApiVersion = 'v1beta';
 
-  // Candidate models ordered from newest to classic
   static CANDIDATE_MODELS = [
     'gemini-3.6-flash',
     'gemini-3.0-flash',
@@ -32,7 +31,6 @@ class GeminiClient {
     const cleanKey = apiKey.trim();
     let discoveredCandidates = [];
 
-    // 1. Fetch available models dynamically from Google API
     for (const version of this.API_VERSIONS) {
       try {
         const url = `https://generativelanguage.googleapis.com/${version}/models?key=${cleanKey}`;
@@ -44,7 +42,6 @@ class GeminiClient {
               .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
               .map(m => m.name.replace(/^models\//, ''));
 
-            // Sort models: 3.6-flash first, then 3.0, 2.0, 1.5, etc.
             models.sort((a, b) => {
               if (a.includes('3.6')) return -1;
               if (b.includes('3.6')) return 1;
@@ -63,14 +60,12 @@ class GeminiClient {
       }
     }
 
-    // Combine discovered models with default candidate list
     const allCandidates = [
       ...discoveredCandidates,
       ...this.CANDIDATE_MODELS.map(m => ({ model: m, version: 'v1beta' })),
       ...this.CANDIDATE_MODELS.map(m => ({ model: m, version: 'v1' }))
     ];
 
-    // Remove duplicates
     const uniqueCandidates = [];
     const seen = new Set();
     for (const item of allCandidates) {
@@ -81,7 +76,6 @@ class GeminiClient {
       }
     }
 
-    // 2. Actively probe each candidate with a tiny 1-token ping to guarantee it works
     for (const candidate of uniqueCandidates) {
       try {
         const url = `https://generativelanguage.googleapis.com/${candidate.version}/models/${candidate.model}:generateContent?key=${cleanKey}`;
@@ -104,16 +98,15 @@ class GeminiClient {
           }
         }
       } catch (e) {
-        // Continue probing next model
+        // continue
       }
     }
 
-    // Default fallback
     return { model: 'gemini-3.6-flash', version: 'v1beta' };
   }
 
   /**
-   * Validate API key and detect verified working model
+   * Validate API key
    */
   static async validateApiKey(apiKey) {
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
@@ -149,7 +142,7 @@ class GeminiClient {
   }
 
   /**
-   * Core text generation with verified active model and automatic retry
+   * Core text generation
    */
   static async generate(prompt, apiKey, options = {}) {
     if (!apiKey) {
@@ -192,7 +185,6 @@ class GeminiClient {
           const errorJson = await response.json().catch(() => ({}));
           const errorMsg = errorJson.error?.message || `HTTP ${response.status}`;
           lastError = new Error(errorMsg);
-          // If model deprecated or not found, try next in fallbackList
           continue;
         }
 
@@ -213,82 +205,139 @@ class GeminiClient {
   }
 
   /**
-   * Generate 3 diverse comment suggestions for a LinkedIn post
+   * Generate 3 diverse comment suggestions using clear delimited text format
    */
   static async generateCommentSuggestions(postText, authorName, apiKey, userBio) {
     const prompt = `
-${typeof DE_SYSTEM_INSTRUCTION !== 'undefined' ? DE_SYSTEM_INSTRUCTION : 'You are a Senior Data Engineer.'}
-
+You are a top Senior Staff Data Engineer commenting on LinkedIn.
 Author: ${authorName || 'Peer'}
-User Background: ${userBio || 'Senior Data Engineer'}
+User Background: ${userBio || 'Senior Data Engineer specializing in PySpark, dbt, Snowflake, Lakehouse, and streaming'}
 
-LinkedIn Post:
+Post Content:
 """
 ${postText}
 """
 
-Generate exactly 3 diverse, high-value LinkedIn comments from a Data Engineer perspective.
-Each comment must represent one of these styles:
-1. Practical Nuance (real-world gotchas, edge cases, partition/memory tuning, testing)
-2. Architectural Trade-off (cost vs latency vs complexity, modern stack comparison)
-3. Senior Inquiry (thoughtful technical question about scale or production failure modes)
+Task: Write exactly 3 high-value, authentic comments for this post.
+Rules for each comment:
+- 2 to 3 sentences max.
+- Be practical, highly technical, and conversational.
+- NO hashtags, NO generic fluff like "Great post!" or "I agree!".
 
-Format your output strictly as a JSON array of objects with keys: "style", "label", "emoji", and "comment".
-Example format:
-[
-  { "style": "practical_experience", "label": "Practical Nuance", "emoji": "💡", "comment": "..." },
-  { "style": "architectural_tradeoff", "label": "Architectural Trade-off", "emoji": "⚖️", "comment": "..." },
-  { "style": "thoughtful_question", "label": "Senior Inquiry", "emoji": "❓", "comment": "..." }
-]
-Return ONLY raw JSON, with no markdown code fences.
+Format your response EXACTLY using these 3 section delimiters with pure comment text under each:
+
+===OPTION 1: Practical Nuance===
+[Write 2-3 sentences adding a real-world pipeline gotcha, edge case, memory spill, or partition tuning lesson]
+
+===OPTION 2: Architectural Trade-off===
+[Write 2-3 sentences analyzing cost vs latency vs engineering complexity or tool tradeoffs]
+
+===OPTION 3: Senior Inquiry===
+[Write 2-3 sentences making a sharp observation and asking a thoughtful technical question about production scale or failure modes]
 `;
 
     const rawResponse = await this.generate(prompt, apiKey, { temperature: 0.75 });
-    try {
-      const cleanJson = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-      return JSON.parse(cleanJson);
-    } catch (e) {
-      return [
-        {
-          style: 'practical_experience',
-          label: 'Practical Insight',
-          emoji: '💡',
-          comment: rawResponse.slice(0, 300)
-        }
-      ];
+
+    const results = [];
+
+    // Parse Option 1
+    const match1 = rawResponse.match(/===OPTION 1:[^=]*===([sS]*?)(?====OPTION 2|$)/i);
+    const comment1 = match1 ? match1[1].trim() : '';
+    if (comment1) {
+      results.push({
+        style: 'practical_experience',
+        label: 'Practical Nuance',
+        emoji: '💡',
+        comment: comment1
+      });
     }
+
+    // Parse Option 2
+    const match2 = rawResponse.match(/===OPTION 2:[^=]*===([sS]*?)(?====OPTION 3|$)/i);
+    const comment2 = match2 ? match2[1].trim() : '';
+    if (comment2) {
+      results.push({
+        style: 'architectural_tradeoff',
+        label: 'Architectural Trade-off',
+        emoji: '⚖️',
+        comment: comment2
+      });
+    }
+
+    // Parse Option 3
+    const match3 = rawResponse.match(/===OPTION 3:[^=]*===([sS]*?)$/i);
+    const comment3 = match3 ? match3[1].trim() : '';
+    if (comment3) {
+      results.push({
+        style: 'thoughtful_question',
+        label: 'Senior Inquiry',
+        emoji: '❓',
+        comment: comment3
+      });
+    }
+
+    // Fallback if delimiters were omitted by the model
+    if (results.length === 0) {
+      const cleanText = rawResponse.replace(/\`\`\`json/gi, '').replace(/\`\`\`/gi, '').trim();
+      try {
+        const parsed = JSON.parse(cleanText);
+        if (Array.isArray(parsed)) {
+          return parsed.map(p => ({
+            style: p.style || 'practical_experience',
+            label: p.label || 'Practical Insight',
+            emoji: p.emoji || '💡',
+            comment: p.comment || JSON.stringify(p)
+          }));
+        }
+      } catch (e) {
+        // Plain text fallback
+        return [
+          {
+            style: 'practical_experience',
+            label: 'Practical Insight',
+            emoji: '💡',
+            comment: cleanText
+          }
+        ];
+      }
+    }
+
+    return results;
   }
 
   /**
-   * Generate 3 viral hooks for a Data Engineering topic
+   * Generate 3 viral hooks
    */
   static async generateHooks(topic, apiKey) {
     const prompt = `
 You are a top technical copywriter for Data Engineering on LinkedIn.
 Topic: "${topic}"
 
-Generate 3 high-converting, attention-grabbing LinkedIn hooks for this topic.
-Types of hooks:
-1. The Counter-Intuitive / Bold Statement (challenges common wisdom)
-2. The Metric / Incident Hook (e.g. "How a single shuffle killed our cluster...")
-3. The Checklist / Framework Hook ("The 5 non-obvious rules for...")
-
-Format your output strictly as a JSON array of strings:
-["Hook 1 text", "Hook 2 text", "Hook 3 text"]
-Return ONLY raw JSON, without backticks.
+Generate 3 high-converting LinkedIn hooks for this topic.
+Format strictly using delimiters:
+===HOOK 1===
+[Hook 1 text]
+===HOOK 2===
+[Hook 2 text]
+===HOOK 3===
+[Hook 3 text]
 `;
 
     const raw = await this.generate(prompt, apiKey, { temperature: 0.85 });
-    try {
-      const cleanJson = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
-      return JSON.parse(cleanJson);
-    } catch (e) {
-      return [
-        `Most teams overcomplicate ${topic}. Here is what actually matters:`,
-        `3 subtle bottlenecks with ${topic} that took us months to debug:`,
-        `The real architectural tradeoff behind ${topic} nobody talks about:`
-      ];
-    }
+    const hooks = [];
+    const m1 = raw.match(/===HOOK 1===([sS]*?)(?====HOOK 2|$)/i);
+    const m2 = raw.match(/===HOOK 2===([sS]*?)(?====HOOK 3|$)/i);
+    const m3 = raw.match(/===HOOK 3===([sS]*?)$/i);
+
+    if (m1 && m1[1].trim()) hooks.push(m1[1].trim());
+    if (m2 && m2[1].trim()) hooks.push(m2[1].trim());
+    if (m3 && m3[1].trim()) hooks.push(m3[1].trim());
+
+    return hooks.length > 0 ? hooks : [
+      `Most teams overcomplicate ${topic}. Here is what actually matters:`,
+      `3 subtle bottlenecks with ${topic} that took us months to debug:`,
+      `The real architectural tradeoff behind ${topic} nobody talks about:`
+    ];
   }
 }
 
