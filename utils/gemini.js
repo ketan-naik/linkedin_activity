@@ -1,4 +1,4 @@
-// utils/gemini.js - Google Gemini API connector with delimiter-based clean comment parser
+// utils/gemini.js - Google Gemini API connector with robust clean comment splitting
 
 class GeminiClient {
   static cachedActiveModel = null;
@@ -21,7 +21,7 @@ class GeminiClient {
   static API_VERSIONS = ['v1beta', 'v1'];
 
   /**
-   * Probes and verifies a working model with a 1-token test ping
+   * Probes and verifies a working model
    */
   static async discoverModel(apiKey) {
     if (this.cachedActiveModel) {
@@ -205,26 +205,29 @@ class GeminiClient {
   }
 
   /**
-   * Generate 3 diverse comment suggestions using clear delimited text format
+   * Generate 3 diverse comment suggestions and cleanly parse into separate cards
+   */
+    /**
+   * Generate 3 diverse comment suggestions and cleanly parse into separate cards
    */
   static async generateCommentSuggestions(postText, authorName, apiKey, userBio) {
     const prompt = `
 You are a top Senior Staff Data Engineer commenting on LinkedIn.
 Author: ${authorName || 'Peer'}
-User Background: ${userBio || 'Senior Data Engineer specializing in PySpark, dbt, Snowflake, Lakehouse, and streaming'}
+User Background: ${userBio || 'Senior Data Engineer specializing in PySpark, dbt, Snowflake, Lakehouse, and cloud architectures'}
 
-Post Content:
+Context of Post/Comment:
 """
 ${postText}
 """
 
-Task: Write exactly 3 high-value, authentic comments for this post.
+Task: Write 3 diverse, high-value comments for this post.
 Rules for each comment:
 - 2 to 3 sentences max.
 - Be practical, highly technical, and conversational.
 - NO hashtags, NO generic fluff like "Great post!" or "I agree!".
 
-Format your response EXACTLY using these 3 section delimiters with pure comment text under each:
+Format your response strictly using these 3 section delimiters with pure comment text under each:
 
 ===OPTION 1: Practical Nuance===
 [Write 2-3 sentences adding a real-world pipeline gotcha, edge case, memory spill, or partition tuning lesson]
@@ -238,76 +241,60 @@ Format your response EXACTLY using these 3 section delimiters with pure comment 
 
     const rawResponse = await this.generate(prompt, apiKey, { temperature: 0.75 });
 
-    const results = [];
+    // Multi-regex robust parser
+    const reg1 = new RegExp('(?:===OPTION 1[^=]*===|\\*\\*Option 1[^\\*]*\\*\\*|1\\.\\s*Practical[^\\n:]*[:\\-])\\s*([\\s\\S]*?)(?=(?:===OPTION 2|\\*\\*Option 2|2\\.\\s*Architectural|Option 2|$))', 'i');
+    const reg2 = new RegExp('(?:===OPTION 2[^=]*===|\\*\\*Option 2[^\\*]*\\*\\*|2\\.\\s*Architectural[^\\n:]*[:\\-])\\s*([\\s\\S]*?)(?=(?:===OPTION 3|\\*\\*Option 3|3\\.\\s*Senior|Option 3|$))', 'i');
+    const reg3 = new RegExp('(?:===OPTION 3[^=]*===|\\*\\*Option 3[^\\*]*\\*\\*|3\\.\\s*Senior[^\\n:]*[:\\-])\\s*([\\s\\S]*?)$', 'i');
 
-    // Parse Option 1
-    const match1 = rawResponse.match(/===OPTION 1:[^=]*===([sS]*?)(?====OPTION 2|$)/i);
-    const comment1 = match1 ? match1[1].trim() : '';
-    if (comment1) {
+    const styles = [
+      { key: 'practical_experience', label: '💡 Practical Nuance', regex: reg1 },
+      { key: 'architectural_tradeoff', label: '⚖️ Architectural Trade-off', regex: reg2 },
+      { key: 'thoughtful_question', label: '❓ Senior Inquiry', regex: reg3 }
+    ];
+
+    const results = [];
+    for (const s of styles) {
+      const m = rawResponse.match(s.regex);
+      if (m && m[1].trim()) {
+        let clean = m[1].trim();
+        clean = clean.replace(/^(?:===OPTION \d+[^=]*===|\*\*Option \d+[^:]*:\*\*|Option \d+:)/i, '').trim();
+        results.push({
+          style: s.key,
+          label: s.label,
+          emoji: s.label.split(' ')[0],
+          comment: clean
+        });
+      }
+    }
+
+    // Secondary fallback: split by delimiter
+    if (results.length === 0) {
+      const parts = rawResponse.split(/={2,}[^=]+={2,}/).map(p => p.trim()).filter(p => p.length > 20);
+      const labels = ['💡 Practical Nuance', '⚖️ Architectural Trade-off', '❓ Senior Inquiry'];
+      parts.forEach((p, idx) => {
+        results.push({
+          style: idx === 0 ? 'practical_experience' : idx === 1 ? 'architectural_tradeoff' : 'thoughtful_question',
+          label: labels[idx] || '💡 High-Impact Take',
+          emoji: (labels[idx] || '💡').split(' ')[0],
+          comment: p
+        });
+      });
+    }
+
+    // Tertiary fallback: clean plain text
+    if (results.length === 0) {
+      const cleanText = rawResponse.replace(/={2,}[^=]+={2,}/g, '').trim();
       results.push({
         style: 'practical_experience',
-        label: 'Practical Nuance',
+        label: '💡 Practical Nuance',
         emoji: '💡',
-        comment: comment1
+        comment: cleanText
       });
-    }
-
-    // Parse Option 2
-    const match2 = rawResponse.match(/===OPTION 2:[^=]*===([sS]*?)(?====OPTION 3|$)/i);
-    const comment2 = match2 ? match2[1].trim() : '';
-    if (comment2) {
-      results.push({
-        style: 'architectural_tradeoff',
-        label: 'Architectural Trade-off',
-        emoji: '⚖️',
-        comment: comment2
-      });
-    }
-
-    // Parse Option 3
-    const match3 = rawResponse.match(/===OPTION 3:[^=]*===([sS]*?)$/i);
-    const comment3 = match3 ? match3[1].trim() : '';
-    if (comment3) {
-      results.push({
-        style: 'thoughtful_question',
-        label: 'Senior Inquiry',
-        emoji: '❓',
-        comment: comment3
-      });
-    }
-
-    // Fallback if delimiters were omitted by the model
-    if (results.length === 0) {
-      const cleanText = rawResponse.replace(/\`\`\`json/gi, '').replace(/\`\`\`/gi, '').trim();
-      try {
-        const parsed = JSON.parse(cleanText);
-        if (Array.isArray(parsed)) {
-          return parsed.map(p => ({
-            style: p.style || 'practical_experience',
-            label: p.label || 'Practical Insight',
-            emoji: p.emoji || '💡',
-            comment: p.comment || JSON.stringify(p)
-          }));
-        }
-      } catch (e) {
-        // Plain text fallback
-        return [
-          {
-            style: 'practical_experience',
-            label: 'Practical Insight',
-            emoji: '💡',
-            comment: cleanText
-          }
-        ];
-      }
     }
 
     return results;
   }
 
-  /**
-   * Generate 3 viral hooks
-   */
   static async generateHooks(topic, apiKey) {
     const prompt = `
 You are a top technical copywriter for Data Engineering on LinkedIn.
