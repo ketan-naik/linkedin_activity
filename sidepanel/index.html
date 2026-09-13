@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinkedIn DE Copilot Studio</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <h1>DE Copilot</h1>
+          <span class="badge-free">100% Free Tier</span>
+        </div>
+      </div>
+      <div class="api-status-badge" id="api-status-indicator" title="API Status">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="tab-post-creator">
+        <span class="tab-icon">✍️</span> Post Studio
+      </button>
+      <button class="nav-tab" data-tab="tab-hooks">
+        <span class="tab-icon">🎣</span> Viral Hooks
+      </button>
+      <button class="nav-tab" data-tab="tab-drafts">
+        <span class="tab-icon">📁</span> Drafts <span class="draft-count" id="draft-counter">0</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-settings">
+        <span class="tab-icon">⚙️</span> Settings
+      </button>
+    </nav>
+
+    <!-- TAB 1: Post Studio -->
+    <section class="tab-content active" id="tab-post-creator">
+      <div class="section-card">
+        <label class="field-label">🎯 Data Engineering Topic</label>
+        <div class="topic-pills" id="topic-pills-container">
+          <button class="topic-pill active" data-topic="PySpark Partition Skew & Memory Spill">🔥 Spark Memory Skew</button>
+          <button class="topic-pill" data-topic="Apache Iceberg vs Delta Lake: Production Tradeoffs">❄️ Iceberg vs Delta</button>
+          <button class="topic-pill" data-topic="dbt Incremental Models vs Full Refresh Gotchas">⚡ dbt Incremental</button>
+          <button class="topic-pill" data-topic="Real-time CDC Pipeline using Kafka, Debezium & Flink">🌊 Real-time CDC</button>
+          <button class="topic-pill" data-topic="DuckDB vs Polars for Local Data Pipelines">🦆 DuckDB vs Polars</button>
+          <button class="topic-pill" data-topic="Data Contracts & Preventing Silent Schema Breakages">📜 Data Contracts</button>
+        </div>
+        <input type="text" id="custom-topic-input" class="text-input" placeholder="Or type your own custom topic..." />
+      </div>
+
+      <div class="section-card">
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label" for="framework-select">📐 Post Framework</label>
+            <select id="framework-select" class="select-input">
+              <option value="architecture_case_study">🏗️ System Design & Case Study</option>
+              <option value="tool_comparison">⚔️ Tool Benchmark & Comparison</option>
+              <option value="gotchas_and_lessons">💥 Gotchas & Incident Breakdown</option>
+              <option value="code_pattern_tip">💻 PySpark / SQL / Python Code Tip</option>
+              <option value="career_mindset">🚀 Career & DE Mindset</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-group" style="margin-top: 10px;">
+          <label class="field-label" for="post-notes-input">📝 Extra Details / Raw Bullet Points (Optional)</label>
+          <textarea id="post-notes-input" class="textarea-input" rows="2" placeholder="e.g. Reduced runtime from 4 hours to 18 mins using salting and broadcast join..."></textarea>
+        </div>
+
+        <button id="generate-post-btn" class="primary-btn">
+          <span class="btn-icon">🚀</span> Generate DE Post
+        </button>
+      </div>
+
+      <!-- Generated Output & Formatting Studio -->
+      <div class="section-card" id="output-card" style="display: none;">
+        <div class="output-header">
+          <label class="field-label" style="margin-bottom: 0;">📱 Live Post Editor & Preview</label>
+          <span class="char-count" id="char-counter">0 chars</span>
+        </div>
+
+        <!-- Unicode Formatting Toolbar -->
+        <div class="formatting-toolbar">
+          <button class="format-btn" id="format-bold" title="Convert selected text to 𝗕𝗼𝗹𝗱">𝗕 Bold</button>
+          <button class="format-btn" id="format-italic" title="Convert selected text to 𝘐𝘵𝘢𝘭𝘪𝘤">𝘐 Italic</button>
+          <button class="format-btn" id="format-bullet-blue" title="Insert Blue Bullet">🔹</button>
+          <button class="format-btn" id="format-bullet-arrow" title="Insert Arrow">👉</button>
+          <button class="format-btn" id="format-bullet-check" title="Insert Checkmark">✅</button>
+          <button class="format-btn" id="format-code" title="Format code line">💻</button>
+        </div>
+
+        <textarea id="post-output-textarea" class="textarea-input post-editor" rows="12"></textarea>
+
+        <!-- Actions -->
+        <div class="action-btn-row">
+          <button id="copy-post-btn" class="action-btn action-primary">
+            <span>📋</span> Copy Post
+          </button>
+          <button id="save-draft-btn" class="action-btn action-secondary">
+            <span>💾</span> Save Draft
+          </button>
+          <button id="open-linkedin-btn" class="action-btn action-accent">
+            <span>🌐</span> Open LinkedIn
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Viral Hooks Optimizer -->
+    <section class="tab-content" id="tab-hooks">
+      <div class="section-card">
+        <label class="field-label">🎣 Generate 3 High-Dwell Hooks for any DE Topic</label>
+        <p class="field-hint">Great hooks double your impressions and dwell time on LinkedIn feed.</p>
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <input type="text" id="hook-topic-input" class="text-input" placeholder="e.g. Apache Spark Out of Memory Errors..." />
+          <button id="generate-hooks-btn" class="primary-btn" style="width: auto; white-space: nowrap;">
+            <span>✨</span> Generate
+          </button>
+        </div>
+      </div>
+
+      <div class="section-card" id="hooks-results-card" style="display: none;">
+        <label class="field-label">👇 Click any hook to use in Post Studio:</label>
+        <div class="hooks-list" id="hooks-list-container"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Saved Drafts -->
+    <section class="tab-content" id="tab-drafts">
+      <div class="drafts-header">
+        <h3 style="font-size: 14px; color: #E1E9EE; margin: 0;">Saved Posts & Drafts</h3>
+        <button id="clear-drafts-btn" class="danger-link-btn">Clear All</button>
+      </div>
+      <div id="drafts-list-container" class="drafts-list">
+        <div class="empty-state">No saved drafts yet. Generate and save posts from Post Studio!</div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Settings -->
+    <section class="tab-content" id="tab-settings">
+      <div class="section-card">
+        <h3 class="card-title">🔑 Google Gemini Free API Key</h3>
+        <p class="field-hint">
+          Get your 100% free key with 1,500 free requests/day from 
+          <a href="https://aistudio.google.com/" target="_blank" class="link-highlight">Google AI Studio ↗</a>
+        </p>
+        <div class="api-key-input-wrapper">
+          <input type="password" id="gemini-api-key-input" class="text-input" placeholder="Paste AIzaSy... API key here" />
+          <button id="toggle-key-visibility-btn" class="icon-toggle-btn" title="Toggle Visibility">👁️</button>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <button id="test-save-api-btn" class="primary-btn">
+            <span>💾</span> Save & Test Connection
+          </button>
+        </div>
+        <div id="api-test-result" class="api-test-feedback"></div>
+      </div>
+
+      <div class="section-card">
+        <h3 class="card-title">👤 Your Engineering Bio / Persona</h3>
+        <p class="field-hint">Tells the AI about your experience so comments and posts sound authentic to you.</p>
+        <textarea id="custom-bio-input" class="textarea-input" rows="3" placeholder="e.g. Lead Data Engineer with 6 years in Spark, Snowflake, dbt, and Kafka streaming pipelines..."></textarea>
+      </div>
+
+      <div class="section-card">
+        <h3 class="card-title">⚙️ Automation & Behavior</h3>
+        <label class="toggle-row">
+          <span>Auto-like posts when inserting AI comments</span>
+          <input type="checkbox" id="setting-auto-like" class="toggle-checkbox" />
+        </label>
+        <button id="save-preferences-btn" class="action-btn action-secondary" style="margin-top: 12px; width: 100%;">
+          <span>💾</span> Save Preferences
+        </button>
+      </div>
+    </section>
+
+    <!-- Toast Notification -->
+    <div id="app-toast" class="toast-notification"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../utils/storage.js"></script>
+  <script src="../utils/prompts.js"></script>
+  <script src="../utils/gemini.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

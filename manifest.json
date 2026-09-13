@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn DE Copilot - AI Post & Comment Growth Engine",
+  "version": "1.0.0",
+  "description": "100% Free AI-powered Data Engineering growth copilot for LinkedIn. Generate high-impact technical comments and viral DE posts with Gemini Flash.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "*://*.linkedin.com/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open LinkedIn DE Copilot Studio",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.linkedin.com/*"
+      ],
+      "js": [
+        "utils/storage.js",
+        "utils/prompts.js",
+        "utils/gemini.js",
+        "content/injector.js"
+      ],
+      "css": [
+        "content/injector.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
